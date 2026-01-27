@@ -17,6 +17,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
   const [activeTab, setActiveTab] = useState<'agents' | 'clues' | 'content' | 'reports'>('agents');
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   
+  // Report Filtering & Selection State
+  const [reportFilter, setReportFilter] = useState<'all' | 'new' | 'read'>('new');
+  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+
   const [editableContent, setEditableContent] = useState<SiteContent>(content);
   const [savingContent, setSavingContent] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -32,21 +36,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
   });
   const [submittingClue, setSubmittingClue] = useState(false);
 
+  // Poll for data updates every 2 seconds
   useEffect(() => {
-    const fetch = async () => {
+    const fetchData = async () => {
       try {
         const [pData, rData, cData] = await Promise.all([getAllUserProfiles(), getReports(), getAllClues()]);
         setProfiles(pData);
         setReports(rData);
         setExistingClues(cData);
       } catch (err) {
-        // Errors handled by global listener
+        console.error("Polling error", err);
       } finally {
         setLoading(false);
       }
     };
-    fetch();
-  }, [activeTab]);
+
+    fetchData(); // Initial fetch
+    const intervalId = setInterval(fetchData, 2000); // Poll every 2s
+
+    return () => clearInterval(intervalId);
+  }, []);
 
   useEffect(() => {
     if (content) {
@@ -82,7 +91,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
         dateFound: new Date().toISOString().split('T')[0],
         targetPlayer: ''
       });
-      // Refresh list
+      // Refresh list immediately
       const cData = await getAllClues();
       setExistingClues(cData);
       onContentUpdate();
@@ -131,6 +140,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
     }
   };
 
+  const handleMarkAsRead = async (report: Report) => {
+    await markReportRead(report.id);
+    const updatedReports = await getReports();
+    setReports(updatedReports);
+    // Update local selected report to reflect status change
+    if (selectedReport && selectedReport.id === report.id) {
+        setSelectedReport({...report, status: 'read'});
+    }
+  };
+
   const formatDate = (val: any) => {
     if (!val) return 'Recently';
     try {
@@ -141,6 +160,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
     }
   };
 
+  // Filter Logic
+  const filteredReports = reports.filter(r => {
+    if (reportFilter === 'all') return true;
+    return r.status === reportFilter;
+  });
+
   return (
     <div className="min-h-screen bg-[#1a1815] p-4 md:p-10 text-stone-900 font-mono">
       {notification && (
@@ -150,6 +175,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
       )}
 
       <div className="max-w-6xl mx-auto bg-[#e5e1d8] shadow-2xl min-h-[85vh] p-6 md:p-12 border-4 border-[#c2bdb1] relative flex flex-col">
+        {/* Live Feed Indicator */}
+        <div className="absolute top-4 right-4 flex items-center gap-2 text-[9px] uppercase font-black tracking-widest text-stone-500">
+           <span className="w-2 h-2 rounded-full bg-green-600 animate-pulse shadow-[0_0_10px_#16a34a]"></span>
+           Live Feed Active
+        </div>
+
         <div className="relative z-10">
           <div className="flex flex-col md:flex-row justify-between items-start border-b-4 border-stone-800 pb-6 mb-8 gap-4">
             <div>
@@ -166,7 +197,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
             <button onClick={() => setActiveTab('clues')} className={`px-6 py-4 text-xs font-black uppercase ${activeTab === 'clues' ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-200'}`}>2. Manage Evidence</button>
             <button onClick={() => setActiveTab('content')} className={`px-6 py-4 text-xs font-black uppercase ${activeTab === 'content' ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-200'}`}>3. Edit Website</button>
             <button onClick={() => setActiveTab('reports')} className={`px-6 py-4 text-xs font-black uppercase ${activeTab === 'reports' ? 'bg-stone-900 text-white' : 'text-stone-600 hover:bg-stone-200'}`}>
-              4. Help Requests {reports.filter(r => r.status === 'new').length > 0 && <span className="ml-2 bg-red-600 text-white px-2 py-0.5 rounded-full animate-pulse">{reports.filter(r => r.status === 'new').length}</span>}
+              4. Help Inbox {reports.filter(r => r.status === 'new').length > 0 && <span className="ml-2 bg-red-600 text-white px-2 py-0.5 rounded-full animate-bounce inline-block">{reports.filter(r => r.status === 'new').length}</span>}
             </button>
           </div>
 
@@ -346,29 +377,122 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
 
             {activeTab === 'reports' && (
               <section className="animate-fade-in space-y-6">
-                <h2 className="text-xl font-black uppercase border-b-2 border-stone-800 pb-2">Detective Help Requests</h2>
-                {reports.length === 0 ? <p className="italic bg-stone-100 p-10 text-center border-2 border-dashed border-stone-400">The city is quiet. No help needed right now.</p> : reports.map(report => (
-                  <div key={report.id} className={`p-8 border-l-[12px] shadow-xl relative transition-all ${report.status === 'new' ? 'bg-white border-red-600' : 'bg-stone-200 border-stone-400 opacity-70'}`}>
-                    <div className="flex justify-between items-start mb-4">
-                       <div>
-                          <p className="font-black uppercase text-2xl leading-none">{report.userName}</p>
-                          <p className="text-[10px] font-bold text-stone-500 mt-1 uppercase">Detective ID: {report.userEmail}</p>
-                       </div>
-                       {report.status === 'new' && (
-                         <button onClick={() => markReportRead(report.id)} className="bg-stone-900 text-white px-6 py-2 text-[10px] uppercase font-black hover:bg-black shadow-lg">Mark as Read</button>
-                       )}
+                <div className="flex justify-between items-center border-b-2 border-stone-800 pb-2">
+                    <h2 className="text-xl font-black uppercase">Detective Help Requests</h2>
+                    <div className="flex gap-2">
+                        <button 
+                            onClick={() => setReportFilter('new')} 
+                            className={`px-3 py-1 text-[10px] uppercase font-black border border-stone-400 transition-all ${reportFilter === 'new' ? 'bg-red-800 text-white border-red-900' : 'bg-white hover:bg-stone-200'}`}
+                        >
+                            Inbox (New)
+                        </button>
+                        <button 
+                            onClick={() => setReportFilter('read')} 
+                            className={`px-3 py-1 text-[10px] uppercase font-black border border-stone-400 transition-all ${reportFilter === 'read' ? 'bg-stone-800 text-white' : 'bg-white hover:bg-stone-200'}`}
+                        >
+                            Archives (Read)
+                        </button>
+                        <button 
+                            onClick={() => setReportFilter('all')} 
+                            className={`px-3 py-1 text-[10px] uppercase font-black border border-stone-400 transition-all ${reportFilter === 'all' ? 'bg-stone-600 text-white' : 'bg-white hover:bg-stone-200'}`}
+                        >
+                            All Files
+                        </button>
                     </div>
-                    <div className="bg-stone-100 p-6 border-2 border-stone-300 italic text-stone-800 font-serif leading-relaxed text-lg shadow-inner">
-                      "{report.message}"
-                    </div>
-                    <p className="text-[9px] mt-4 font-bold uppercase text-stone-400">Signal Received: {formatDate(report.timestamp)}</p>
+                </div>
+
+                {filteredReports.length === 0 ? (
+                  <p className="italic bg-stone-100 p-10 text-center border-2 border-dashed border-stone-400 text-stone-500">
+                      {reportFilter === 'new' ? "No new signals received." : "Case file empty."}
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 gap-4">
+                    {filteredReports.map(report => (
+                      <div 
+                        key={report.id} 
+                        onClick={() => setSelectedReport(report)}
+                        className={`p-6 border-l-[8px] shadow-sm relative transition-all cursor-pointer group hover:translate-x-1 ${report.status === 'new' ? 'bg-white border-red-600' : 'bg-stone-200 border-stone-400 opacity-60 hover:opacity-100'}`}
+                      >
+                        <div className="flex justify-between items-center mb-2">
+                           <div className="flex items-center gap-3">
+                              {report.status === 'new' && <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>}
+                              <p className="font-black uppercase text-lg leading-none group-hover:underline decoration-red-900 underline-offset-4">{report.userName}</p>
+                           </div>
+                           <p className="text-[9px] font-bold text-stone-500 uppercase">{formatDate(report.timestamp)}</p>
+                        </div>
+                        <p className="text-sm font-serif italic text-stone-700 truncate pr-10">"{report.message}"</p>
+                        <p className="text-[9px] mt-2 font-bold uppercase text-stone-400">Click to open file</p>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </section>
             )}
           </div>
         </div>
       </div>
+
+      {/* Report Detail Modal */}
+      {selectedReport && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+           <div className="bg-[#f4f1ea] w-full max-w-2xl shadow-2xl border-[12px] border-stone-300 relative transform rotate-1 flex flex-col">
+              {/* Header */}
+              <div className="bg-stone-200 p-4 border-b-2 border-stone-400 flex justify-between items-center">
+                  <div className="flex gap-2 items-center">
+                      <div className="w-3 h-3 bg-red-800 rounded-full"></div>
+                      <h3 className="font-black uppercase text-xl tracking-tighter">Confidential Wire</h3>
+                  </div>
+                  <button onClick={() => setSelectedReport(null)} className="text-stone-500 hover:text-red-900 font-black text-2xl leading-none">×</button>
+              </div>
+              
+              {/* Content */}
+              <div className="p-8 md:p-12 bg-[url('https://www.transparenttextures.com/patterns/natural-paper.png')]">
+                  <div className="grid grid-cols-2 gap-6 mb-8 border-b-4 border-double border-stone-800 pb-6">
+                      <div>
+                          <p className="text-[9px] font-black uppercase text-stone-500 mb-1">From Agent</p>
+                          <p className="text-xl font-bold uppercase">{selectedReport.userName}</p>
+                          <p className="text-xs font-mono text-stone-600">{selectedReport.userEmail}</p>
+                      </div>
+                      <div className="text-right">
+                          <p className="text-[9px] font-black uppercase text-stone-500 mb-1">Time Received</p>
+                          <p className="text-lg font-mono font-bold">{formatDate(selectedReport.timestamp)}</p>
+                          <div className={`inline-block mt-2 px-2 py-0.5 text-[9px] font-black uppercase border ${selectedReport.status === 'new' ? 'bg-red-100 text-red-900 border-red-300' : 'bg-stone-200 text-stone-500 border-stone-300'}`}>
+                             Status: {selectedReport.status}
+                          </div>
+                      </div>
+                  </div>
+                  
+                  <div className="mb-8">
+                      <p className="text-[9px] font-black uppercase text-stone-500 mb-2">Message Content</p>
+                      <div className="font-serif text-lg leading-relaxed italic text-stone-900 bg-white/40 p-4 border border-stone-300 shadow-inner">
+                          "{selectedReport.message}"
+                      </div>
+                  </div>
+
+                  <div className="flex gap-4">
+                      {selectedReport.status === 'new' ? (
+                          <button 
+                            onClick={() => handleMarkAsRead(selectedReport)} 
+                            className="flex-1 bg-red-900 text-white py-4 font-black uppercase text-xs shadow-lg hover:bg-red-800 border-b-4 border-red-950 active:translate-y-1 transition-all"
+                          >
+                             Mark as Reviewed (Read)
+                          </button>
+                      ) : (
+                         <div className="flex-1 bg-stone-200 text-stone-500 py-4 font-black uppercase text-xs text-center border-2 border-stone-300 cursor-not-allowed">
+                             File Archived
+                         </div>
+                      )}
+                      <button 
+                        onClick={() => setSelectedReport(null)} 
+                        className="px-8 bg-white text-stone-900 py-4 font-black uppercase text-xs border-b-4 border-stone-300 hover:bg-stone-50"
+                      >
+                        Close File
+                      </button>
+                  </div>
+              </div>
+           </div>
+        </div>
+      )}
     </div>
   );
 };
