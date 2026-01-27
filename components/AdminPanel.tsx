@@ -174,13 +174,43 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
             {activeTab === 'agents' && (
               <section className="animate-fade-in grid grid-cols-1 md:grid-cols-2 gap-4">
                 <h2 className="col-span-2 text-xl font-black uppercase mb-2">People playing the game:</h2>
-                {profiles.map((user) => (
-                  <div key={user.email} className="bg-[#f0ece3] border-2 border-stone-400 p-4 shadow-sm">
-                    <p className="font-black text-lg uppercase">{user.name}</p>
-                    <p className="text-[10px] font-bold text-stone-500 italic">{user.email}</p>
-                    <p className="text-xs mt-3 font-bold uppercase bg-stone-200 inline-block px-2">Location: {user.groupName || "Unknown"}</p>
-                  </div>
-                ))}
+                {profiles.map((user) => {
+                  const userClueCount = existingClues.filter(c => c.addedBy === user.email).length;
+                  const userReportCount = reports.filter(r => r.userEmail === user.email).length;
+                  
+                  return (
+                    <div key={user.email} className="bg-[#f0ece3] border-2 border-stone-400 p-4 shadow-sm relative group hover:border-stone-600 transition-colors">
+                      <div className="absolute top-2 right-2 text-[9px] font-bold text-stone-500 uppercase tracking-widest bg-stone-200 px-2">
+                         Last Seen: {formatDate(user.loginTime)}
+                      </div>
+                      
+                      <div className="mb-3">
+                        <p className="font-black text-xl uppercase tracking-tight">{user.name}</p>
+                        <p className="text-[11px] font-bold text-stone-500 italic font-serif">{user.email}</p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 text-[10px] bg-white/50 p-2 border border-stone-300">
+                          <div>
+                            <span className="font-black uppercase block text-stone-400 text-[8px]">Station Name</span>
+                            <span className="font-bold">{user.groupName || "Unassigned"}</span>
+                          </div>
+                          <div>
+                            <span className="font-black uppercase block text-stone-400 text-[8px]">Partner(s)</span>
+                            <span className="font-bold">{user.groupMembers || "Solo Agent"}</span>
+                          </div>
+                      </div>
+
+                      <div className="mt-3 flex gap-2 text-[9px] font-black uppercase">
+                        <span className={`px-2 py-1 border ${userClueCount > 0 ? 'bg-blue-100 border-blue-300 text-blue-900' : 'bg-stone-200 border-stone-300 text-stone-500'}`}>
+                          Found {userClueCount} Clue{userClueCount !== 1 ? 's' : ''}
+                        </span>
+                        <span className={`px-2 py-1 border ${userReportCount > 0 ? 'bg-red-100 border-red-300 text-red-900' : 'bg-stone-200 border-stone-300 text-stone-500'}`}>
+                          Sent {userReportCount} Report{userReportCount !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
                 {profiles.length === 0 && <p className="italic">No detectives have signed in yet.</p>}
               </section>
             )}
@@ -227,16 +257,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
                      {existingClues.map(clue => (
                          <div key={clue.id} className="bg-white p-4 border border-stone-400 flex justify-between gap-4 shadow-sm">
                              <div className="flex gap-4">
-                                 <img src={clue.imageUrl} className="w-16 h-16 object-cover bg-stone-300" alt="thumb"/>
+                                 <img src={clue.imageUrl} className="w-16 h-16 object-cover bg-stone-300 border border-stone-300" alt="thumb"/>
                                  <div>
                                      <p className="font-black uppercase text-sm">{clue.title}</p>
-                                     <p className="text-[10px] text-stone-500">{clue.description.substring(0, 50)}...</p>
-                                     <p className="text-[9px] font-bold bg-stone-200 inline-block px-1 mt-1">
-                                       {clue.targetPlayer ? `Target: ${clue.targetPlayer}` : 'GLOBAL'}
-                                     </p>
+                                     <p className="text-[10px] text-stone-500 mb-1">{clue.description.substring(0, 50)}...</p>
+                                     <div className="flex flex-col gap-1">
+                                        <p className="text-[8px] font-bold bg-stone-100 border border-stone-200 text-stone-600 inline-block px-1">
+                                          Finder: {clue.addedBy === 'CHIEF' || !clue.addedBy ? '★ OFFICIAL' : clue.addedBy}
+                                        </p>
+                                        {clue.targetPlayer && (
+                                            <p className="text-[8px] font-bold bg-yellow-100 border border-yellow-200 text-yellow-800 inline-block px-1">
+                                              Target: {clue.targetPlayer}
+                                            </p>
+                                        )}
+                                     </div>
                                  </div>
                              </div>
-                             <button onClick={() => handleDeleteClue(clue.id)} className="text-red-800 font-black text-xs hover:underline uppercase">Delete</button>
+                             <button onClick={() => handleDeleteClue(clue.id)} className="text-red-800 font-black text-xs hover:underline uppercase self-start">Delete</button>
                          </div>
                      ))}
                      {existingClues.length === 0 && <p className="text-center italic col-span-2">No evidence collected yet.</p>}
