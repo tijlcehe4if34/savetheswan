@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { loginUser, registerUser, logUserLogin, getUserInfoByEmail } from '../services/dataService';
+import { loginUser, registerUser, logUserLogin, getUserInfoByEmail, setForceLocalMode } from '../services/dataService';
 import { SiteContent } from '../types';
 
 interface LoginScreenProps {
@@ -18,10 +17,12 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, conten
   const [isRegistering, setIsRegistering] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showOfflineOption, setShowOfflineOption] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setShowOfflineOption(false);
 
     const cleanEmail = email.toLowerCase().trim();
 
@@ -65,14 +66,28 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, conten
       console.error("Auth error:", error);
       if (error.message === 'auth/email-already-in-use') {
         setError("That email is already registered in our files.");
-      } else if (error.message === 'auth/invalid-credential') {
-        setError("Incorrect credentials. Check your file number and key.");
+      } else if (error.message === 'auth/invalid-credential' || error.code === 'auth/invalid-credential') {
+        setError("Invalid credentials. Check your email and password.");
+      } else if (error.message.includes('auth/too-many-requests') || error.code === 'auth/too-many-requests') {
+        setError("Too many failed attempts. Access blocked temporarily.");
+        setShowOfflineOption(true);
+      } else if (error.code === 'permission-denied') {
+        setError("Cloud access denied. Try Offline Mode.");
+        setShowOfflineOption(true);
       } else {
         setError("Bureau access denied: " + (error.message || "Unknown error"));
       }
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleOfflineSwitch = () => {
+    setForceLocalMode(true);
+    setError("System switched to Offline Mode. Please register or login locally.");
+    setShowOfflineOption(false);
+    // Usually switching to offline means they need to register locally if they haven't before
+    if (!isRegistering) setIsRegistering(true);
   };
 
   return (
@@ -82,20 +97,30 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, conten
       <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black to-transparent opacity-60"></div>
       
       {/* Login Card */}
-      <div className="z-10 bg-[#f4f1ea] p-8 md:p-12 shadow-[0_0_80px_rgba(0,0,0,0.9)] max-w-lg w-full transform -rotate-1 border-stone-400 border-[12px] text-stone-900 relative">
+      <div className="z-10 bg-[#f4f1ea] dark:bg-[#1c1917] dark:border-stone-600 dark:text-stone-300 p-8 md:p-12 shadow-[0_0_80px_rgba(0,0,0,0.9)] max-w-lg w-full transform -rotate-1 border-stone-400 border-[12px] text-stone-900 relative transition-colors duration-500">
         <div className="absolute -top-4 -left-4 w-12 h-12 bg-stone-900 border-4 border-stone-400 flex items-center justify-center text-white font-black text-2xl shadow-lg">?</div>
         
-        <div className="mb-8 border-b-4 border-double border-stone-800 pb-4">
-          <h1 className="text-4xl font-black uppercase tracking-tighter text-stone-900 leading-none">
+        <div className="mb-8 border-b-4 border-double border-stone-800 dark:border-stone-500 pb-4">
+          <h1 className="text-4xl font-black uppercase tracking-tighter text-stone-900 dark:text-stone-100 leading-none">
             {isRegistering ? (content.intake_heading || "Personnel Intake") : (content.login_heading || "Bureau Login")}
           </h1>
-          <p className="text-[10px] uppercase font-bold tracking-widest mt-3 italic text-stone-500">Official Department of Investigation Log</p>
+          <p className="text-[10px] uppercase font-bold tracking-widest mt-3 italic text-stone-500 dark:text-stone-400">Official Department of Investigation Log</p>
         </div>
 
         {error && (
-          <div className="mb-6 bg-red-100 border-l-8 border-red-700 p-4 animate-fade-in">
-            <p className="text-[10px] font-black uppercase text-red-900 mb-1">Alert:</p>
-            <p className="text-xs font-bold text-red-800">{error}</p>
+          <div className="mb-6 bg-red-100 dark:bg-red-900/30 border-l-8 border-red-700 p-4 animate-fade-in flex flex-col gap-2">
+            <div>
+              <p className="text-[10px] font-black uppercase text-red-900 dark:text-red-400 mb-1">Alert:</p>
+              <p className="text-xs font-bold text-red-800 dark:text-red-200">{error}</p>
+            </div>
+            {showOfflineOption && (
+              <button 
+                onClick={handleOfflineSwitch}
+                className="mt-2 bg-red-800 text-white text-[10px] font-black uppercase py-2 px-4 hover:bg-red-700 transition-colors w-full"
+              >
+                ⚠ Bypass Security (Use Offline Mode)
+              </button>
+            )}
           </div>
         )}
 
@@ -103,59 +128,59 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, conten
           {isRegistering && (
             <div className="grid grid-cols-1 gap-4 animate-fade-in">
               <div className="space-y-1">
-                <label className="text-[9px] font-black uppercase text-stone-500">Your Full Name</label>
-                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-stone-100/50 border-2 border-stone-300 p-3 text-sm font-mono focus:border-stone-800 outline-none transition-all" placeholder="e.g. Detective Smith" required={isRegistering} />
+                <label className="text-[9px] font-black uppercase text-stone-500 dark:text-stone-400">Your Full Name</label>
+                <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-stone-100/50 dark:bg-stone-800 dark:text-stone-100 dark:border-stone-600 border-2 border-stone-300 p-3 text-sm font-mono focus:border-stone-800 dark:focus:border-stone-400 outline-none transition-all" placeholder="e.g. Detective Smith" required={isRegistering} />
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase text-stone-500">Station / Group Name</label>
-                  <input type="text" value={groupName} onChange={(e) => setGroupName(e.target.value)} className="w-full bg-stone-100/50 border-2 border-stone-300 p-3 text-sm font-mono focus:border-stone-800 outline-none transition-all" placeholder="e.g. Team Alpha" required={isRegistering} />
+                  <label className="text-[9px] font-black uppercase text-stone-500 dark:text-stone-400">Station / Group Name</label>
+                  <input type="text" value={groupName} onChange={(e) => setGroupName(e.target.value)} className="w-full bg-stone-100/50 dark:bg-stone-800 dark:text-stone-100 dark:border-stone-600 border-2 border-stone-300 p-3 text-sm font-mono focus:border-stone-800 dark:focus:border-stone-400 outline-none transition-all" placeholder="e.g. Team Alpha" required={isRegistering} />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[9px] font-black uppercase text-stone-500">Group Members</label>
-                  <input type="text" value={groupMembers} onChange={(e) => setGroupMembers(e.target.value)} className="w-full bg-stone-100/50 border-2 border-stone-300 p-3 text-sm font-mono focus:border-stone-800 outline-none transition-all" placeholder="e.g. Joe, Jane, Bob" required={isRegistering} />
+                  <label className="text-[9px] font-black uppercase text-stone-500 dark:text-stone-400">Group Members</label>
+                  <input type="text" value={groupMembers} onChange={(e) => setGroupMembers(e.target.value)} className="w-full bg-stone-100/50 dark:bg-stone-800 dark:text-stone-100 dark:border-stone-600 border-2 border-stone-300 p-3 text-sm font-mono focus:border-stone-800 dark:focus:border-stone-400 outline-none transition-all" placeholder="e.g. Joe, Jane, Bob" required={isRegistering} />
                 </div>
               </div>
             </div>
           )}
 
           <div className="space-y-1">
-            <label className="text-[9px] font-black uppercase text-stone-500">Case File Email</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-stone-100/50 border-2 border-stone-300 p-3 text-sm font-mono focus:border-stone-800 outline-none transition-all" placeholder="detective@precinct.la" required />
+            <label className="text-[9px] font-black uppercase text-stone-500 dark:text-stone-400">Case File Email</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-stone-100/50 dark:bg-stone-800 dark:text-stone-100 dark:border-stone-600 border-2 border-stone-300 p-3 text-sm font-mono focus:border-stone-800 dark:focus:border-stone-400 outline-none transition-all" placeholder="detective@precinct.la" required />
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
-              <label className="text-[9px] font-black uppercase text-stone-500">Vault Key (Password)</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-stone-100/50 border-2 border-stone-300 p-3 text-sm font-mono focus:border-stone-800 outline-none transition-all" placeholder="••••••••" required />
+              <label className="text-[9px] font-black uppercase text-stone-500 dark:text-stone-400">Vault Key (Password)</label>
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-stone-100/50 dark:bg-stone-800 dark:text-stone-100 dark:border-stone-600 border-2 border-stone-300 p-3 text-sm font-mono focus:border-stone-800 dark:focus:border-stone-400 outline-none transition-all" placeholder="••••••••" required />
             </div>
             {isRegistering && (
               <div className="space-y-1 animate-fade-in">
-                <label className="text-[9px] font-black uppercase text-stone-500">Confirm Key</label>
-                <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-stone-100/50 border-2 border-stone-300 p-3 text-sm font-mono focus:border-stone-800 outline-none transition-all" placeholder="••••••••" required={isRegistering} />
+                <label className="text-[9px] font-black uppercase text-stone-500 dark:text-stone-400">Confirm Key</label>
+                <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-stone-100/50 dark:bg-stone-800 dark:text-stone-100 dark:border-stone-600 border-2 border-stone-300 p-3 text-sm font-mono focus:border-stone-800 dark:focus:border-stone-400 outline-none transition-all" placeholder="••••••••" required={isRegistering} />
               </div>
             )}
           </div>
 
-          <button type="submit" disabled={loading} className={`w-full py-5 bg-stone-900 text-stone-100 hover:bg-black transition-all uppercase tracking-widest font-black text-sm shadow-2xl border-b-4 border-black active:translate-y-1 ${loading ? 'opacity-70 cursor-wait' : ''}`}>
+          <button type="submit" disabled={loading} className={`w-full py-5 bg-stone-900 dark:bg-black dark:border-stone-600 text-stone-100 hover:bg-black transition-all uppercase tracking-widest font-black text-sm shadow-2xl border-b-4 border-black active:translate-y-1 ${loading ? 'opacity-70 cursor-wait' : ''}`}>
             {loading ? (
               <span className="flex items-center justify-center gap-2">
                 <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                VERIFYING...
+                CONNECTING TO HQ...
               </span>
             ) : isRegistering ? "CREATE PERMANENT RECORD" : "ENTER PRECINCT"}
           </button>
           
-          <button type="button" onClick={() => { setIsRegistering(!isRegistering); setError(null); }} className="w-full text-center text-[10px] uppercase font-black text-stone-500 hover:text-stone-900 transition-colors pt-2 underline underline-offset-4 decoration-stone-300">
+          <button type="button" onClick={() => { setIsRegistering(!isRegistering); setError(null); setShowOfflineOption(false); }} className="w-full text-center text-[10px] uppercase font-black text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-colors pt-2 underline underline-offset-4 decoration-stone-300 dark:decoration-stone-600">
             {isRegistering ? "Wait, I already have a record" : "Register as New Personnel"}
           </button>
         </form>
 
-        <div className="mt-8 pt-6 border-t border-stone-300/50 flex justify-between items-center opacity-40 grayscale">
-          <div className="text-[7px] uppercase font-black leading-tight text-stone-600">
+        <div className="mt-8 pt-6 border-t border-stone-300/50 dark:border-stone-700 flex justify-between items-center opacity-40 grayscale">
+          <div className="text-[7px] uppercase font-black leading-tight text-stone-600 dark:text-stone-400">
             Department of Public Safety<br/>LA Division // 1947
           </div>
-          <div className="w-10 h-10 border-2 border-stone-800 rounded-full flex items-center justify-center font-black text-xs">LA</div>
+          <div className="w-10 h-10 border-2 border-stone-800 dark:border-stone-500 rounded-full flex items-center justify-center font-black text-xs dark:text-stone-400">LA</div>
         </div>
       </div>
     </div>

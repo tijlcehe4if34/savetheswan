@@ -19,6 +19,8 @@ export interface UserRecord {
   groupMembers: string;
   loginTime: any;
   cluesUnlocked?: number;
+  lastAction?: string;
+  lastActionTime?: string;
 }
 
 export interface Report {
