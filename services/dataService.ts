@@ -249,8 +249,6 @@ export const logUserAction = async (email: string, action: string) => {
         lastActionTime: timestamp 
       });
     } catch (e) {
-      // If logging action fails (permissions), just silently fail or switch mode
-      // We don't want to interrupt the user flow for a log
       if (handleCloudError(e)) {
          logUserAction(email, action); // Retry locally
       }
@@ -303,7 +301,6 @@ export const getAllUserProfiles = async (): Promise<any[]> => {
   if (isCloudActive()) {
       try {
         const snap = await getDocs(collection(db, 'profiles'));
-        // Fallback: Ensure email exists (use doc ID) if missing in data
         const list = snap.docs.map(d => ({ email: d.id, ...d.data() }));
         return list.sort((a: any, b: any) => new Date(b.loginTime || 0).getTime() - new Date(a.loginTime || 0).getTime());
       } catch (e) {
@@ -410,6 +407,22 @@ export const getReports = async (): Promise<Report[]> => {
   return getStorage<Report[]>(KEY_REPORTS, []);
 };
 
+export const getUserReports = async (userEmail: string): Promise<Report[]> => {
+  if (isCloudActive()) {
+      try {
+        const q = query(collection(db, 'reports'), where('userEmail', '==', userEmail));
+        const snap = await getDocs(q);
+        const list = snap.docs.map(d => ({ ...d.data(), id: d.id } as Report));
+        return list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      } catch (e) {
+        if (handleCloudError(e)) return getUserReports(userEmail);
+        return [];
+      }
+  }
+  const reports = getStorage<Report[]>(KEY_REPORTS, []);
+  return reports.filter(r => r.userEmail === userEmail).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+};
+
 export const markReportRead = async (id: string) => {
   if (isCloudActive()) {
       try {
@@ -422,6 +435,29 @@ export const markReportRead = async (id: string) => {
   }
   const reports = getStorage<Report[]>(KEY_REPORTS, []);
   setStorage(KEY_REPORTS, reports.map(r => r.id === id ? { ...r, status: 'read' as const } : r));
+};
+
+export const replyToReport = async (id: string, reply: string) => {
+  if (isCloudActive()) {
+      try {
+        await updateDoc(doc(db, 'reports', id), { 
+          status: 'replied',
+          adminReply: reply,
+          replyTimestamp: new Date().toISOString()
+        });
+        return;
+      } catch (e) {
+        if (handleCloudError(e)) { replyToReport(id, reply); return; }
+        throw e;
+      }
+  }
+  const reports = getStorage<Report[]>(KEY_REPORTS, []);
+  setStorage(KEY_REPORTS, reports.map(r => r.id === id ? { 
+    ...r, 
+    status: 'replied' as const,
+    adminReply: reply,
+    replyTimestamp: new Date().toISOString() 
+  } : r));
 };
 
 export const getSiteContent = async (): Promise<SiteContent> => {

@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Clue, SiteContent } from '../types';
+import { Clue, SiteContent, Report } from '../types';
 import { TypewriterText } from './TypewriterText';
 import { getNoirNarration } from '../services/geminiService';
-import { getCaseClues, addReport, addClue, logUserAction } from '../services/dataService';
+import { getCaseClues, addReport, addClue, logUserAction, getUserReports } from '../services/dataService';
 
 export const InvestigationBoard: React.FC<{ 
   badge: string; 
@@ -25,6 +25,7 @@ export const InvestigationBoard: React.FC<{
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportText, setReportText] = useState('');
   const [isSendingReport, setIsSendingReport] = useState(false);
+  const [myReports, setMyReports] = useState<Report[]>([]);
   
   const [showAddClueModal, setShowAddClueModal] = useState(false);
   const [isAddingClue, setIsAddingClue] = useState(false);
@@ -48,13 +49,23 @@ export const InvestigationBoard: React.FC<{
     setIsInitialLoading(false);
   }, [userEmail]);
 
+  const fetchMyReports = useCallback(async () => {
+    if (!userEmail) return;
+    const data = await getUserReports(userEmail);
+    setMyReports(data);
+  }, [userEmail]);
+
   useEffect(() => {
     if (userEmail) {
       fetchClues();
-      const interval = setInterval(fetchClues, 15000); 
+      fetchMyReports();
+      const interval = setInterval(() => {
+        fetchClues();
+        fetchMyReports();
+      }, 15000); 
       return () => clearInterval(interval);
     }
-  }, [userEmail, fetchClues]);
+  }, [userEmail, fetchClues, fetchMyReports]);
 
   const fetchNewNarration = async (context: string) => {
     setIsNarrating(true);
@@ -81,7 +92,8 @@ export const InvestigationBoard: React.FC<{
     try {
       await addReport({ userEmail, userName: name, message: reportText });
       setReportText('');
-      setShowReportModal(false);
+      // Don't close immediately, let them see it added to the list
+      await fetchMyReports();
       setNarration("A signal was sent to HQ. Help is on the way, I just have to sit tight.");
       logUserAction(userEmail, "Waiting for HQ response");
     } catch (err) { 
@@ -118,6 +130,8 @@ export const InvestigationBoard: React.FC<{
     }
   };
 
+  const hasRepliedReport = myReports.some(r => r.status === 'replied');
+
   return (
     <div className="min-h-screen bg-[#080808] text-stone-300 p-4 md:p-12 pb-32 relative flex flex-col md:flex-row gap-8 overflow-x-hidden transition-colors duration-500">
       <div className="fixed inset-0 pointer-events-none noir-vignette z-10 opacity-50"></div>
@@ -140,8 +154,9 @@ export const InvestigationBoard: React.FC<{
             ★ Read Case File
           </button>
 
-          <button onClick={() => setShowReportModal(true)} className="bg-red-800 text-white py-4 font-black uppercase text-xs shadow-xl border-b-4 border-red-950 active:translate-y-1 transition-all hover:bg-red-700">
+          <button onClick={() => setShowReportModal(true)} className="bg-red-800 text-white py-4 font-black uppercase text-xs shadow-xl border-b-4 border-red-950 active:translate-y-1 transition-all hover:bg-red-700 relative">
             ⚠ Help! (Ask Chief)
+            {hasRepliedReport && <span className="absolute top-2 right-2 w-3 h-3 bg-yellow-400 rounded-full animate-pulse shadow-lg border border-red-900"></span>}
           </button>
           
           <button onClick={() => { onOpenRules(); logUserAction(userEmail, "Reading the Rules"); }} className="bg-stone-800 text-stone-400 py-3 font-black uppercase text-[10px] border border-stone-700 hover:bg-stone-700 hover:text-white transition-colors">
@@ -301,18 +316,39 @@ export const InvestigationBoard: React.FC<{
       {/* REPORT MODAL */}
       {showReportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#f4f1ea] dark:bg-[#1c1917] dark:text-stone-300 w-full max-w-md p-8 shadow-2xl border-[8px] border-red-900 relative transition-colors duration-500">
+          <div className="bg-[#f4f1ea] dark:bg-[#1c1917] dark:text-stone-300 w-full max-w-md p-8 shadow-2xl border-[8px] border-red-900 relative transition-colors duration-500 max-h-[90vh] overflow-y-auto">
              <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-red-900 text-white px-4 py-1 text-[10px] font-black uppercase tracking-widest shadow-md">
                Urgent Wire
              </div>
              
              <h2 className="text-xl font-black uppercase mb-4 text-center mt-2 text-stone-900 dark:text-stone-100">Contact Headquarters</h2>
-             <p className="text-xs font-serif italic text-center text-stone-600 dark:text-stone-400 mb-6">"Send a message to the Chief. Only use for emergencies or big discoveries."</p>
+             <p className="text-xs font-serif italic text-center text-stone-600 dark:text-stone-400 mb-6">"Direct line to the Chief. Use carefully."</p>
              
+             {/* PREVIOUS MESSAGES */}
+             {myReports.length > 0 && (
+               <div className="mb-6 border-b-2 border-stone-300 dark:border-stone-600 pb-4">
+                 <h3 className="text-[10px] font-black uppercase mb-2 text-stone-500">Previous Wires</h3>
+                 <div className="space-y-3 max-h-40 overflow-y-auto custom-scrollbar bg-white/50 dark:bg-stone-900/50 p-2 border border-stone-200 dark:border-stone-700">
+                   {myReports.map(r => (
+                     <div key={r.id} className="text-xs p-2 bg-white dark:bg-stone-800 border-l-2 border-stone-400">
+                        <p className="font-bold text-stone-800 dark:text-stone-300">YOU: "{r.message.substring(0, 50)}{r.message.length > 50 ? '...' : ''}"</p>
+                        {r.status === 'replied' && (
+                          <div className="mt-2 pl-2 border-l-2 border-green-600">
+                             <p className="font-black text-[9px] text-green-700 uppercase">CHIEF REPLY:</p>
+                             <p className="italic text-stone-600 dark:text-stone-400">{r.adminReply}</p>
+                          </div>
+                        )}
+                        {r.status === 'new' && <span className="text-[8px] bg-yellow-100 text-yellow-800 px-1 mt-1 inline-block">PENDING</span>}
+                     </div>
+                   ))}
+                 </div>
+               </div>
+             )}
+
              <textarea 
                 value={reportText} 
                 onChange={e => setReportText(e.target.value)}
-                className="w-full bg-white dark:bg-stone-800 border-2 border-red-200 dark:border-red-900/50 p-4 font-mono text-sm h-32 focus:border-red-900 outline-none mb-6" 
+                className="w-full bg-white dark:bg-stone-800 border-2 border-red-200 dark:border-red-900/50 p-4 font-mono text-sm h-24 focus:border-red-900 outline-none mb-6" 
                 placeholder="Chief, I found something..."
               />
 
@@ -321,7 +357,7 @@ export const InvestigationBoard: React.FC<{
                  {isSendingReport ? 'Sending...' : 'Send Wire'}
                </button>
                <button onClick={() => setShowReportModal(false)} className="bg-stone-200 dark:bg-stone-700 text-stone-600 dark:text-stone-300 py-3 font-black uppercase text-xs hover:bg-stone-300 dark:hover:bg-stone-600">
-                 Cancel
+                 Close
                </button>
              </div>
           </div>

@@ -31,7 +31,9 @@ export interface Report {
   userName: string;
   message: string;
   timestamp: any;
-  status: 'new' | 'read';
+  status: 'new' | 'read' | 'replied';
+  adminReply?: string;
+  replyTimestamp?: string;
 }
 
 // Added missing interface used by dataService and RulesPage

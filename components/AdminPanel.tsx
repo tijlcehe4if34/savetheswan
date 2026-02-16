@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { UserRecord, Clue, SiteContent, Report } from '../types';
-import { getAllUserProfiles, addClue, updateSiteContent, getReports, markReportRead, getAllClues, deleteClue, isCloudActive, updateUserNote } from '../services/dataService';
+import { getAllUserProfiles, addClue, updateSiteContent, getReports, markReportRead, replyToReport, getAllClues, deleteClue, isCloudActive, updateUserNote } from '../services/dataService';
 
 interface AdminPanelProps {
   onExit: () => void;
@@ -152,6 +152,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
   // Report Filtering & Selection State
   const [reportFilter, setReportFilter] = useState<'all' | 'new' | 'read'>('new');
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [replyText, setReplyText] = useState('');
+  const [isSendingReply, setIsSendingReply] = useState(false);
 
   const [editableContent, setEditableContent] = useState<SiteContent>(content);
   const [savingContent, setSavingContent] = useState(false);
@@ -313,6 +315,28 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
     }
   };
 
+  const handleSendReply = async () => {
+    if (!selectedReport || !replyText.trim()) return;
+    setIsSendingReply(true);
+    try {
+      await replyToReport(selectedReport.id, replyText);
+      setReplyText('');
+      showNotification("Reply sent to agent.", "success");
+      fetchData();
+      // Update local state
+      setSelectedReport({
+        ...selectedReport,
+        status: 'replied',
+        adminReply: replyText,
+        replyTimestamp: new Date().toISOString()
+      });
+    } catch (err) {
+      showNotification("Failed to send reply.", "error");
+    } finally {
+      setIsSendingReply(false);
+    }
+  };
+
   const formatDate = (val: any) => {
     if (!val) return 'Recently';
     try {
@@ -326,7 +350,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
   // Filter Logic
   const filteredReports = reports.filter(r => {
     if (reportFilter === 'all') return true;
-    return r.status === reportFilter;
+    return r.status === reportFilter || (reportFilter === 'read' && r.status === 'replied'); // Replied also counts as read/archived
   });
 
   const activeAgentCount = profiles.filter(p => getStatus(p.lastActionTime) === 'active').length;
@@ -564,7 +588,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
                     {filteredReports.map(report => (
                       <div 
                         key={report.id} 
-                        onClick={() => setSelectedReport(report)}
+                        onClick={() => { setSelectedReport(report); setReplyText(report.adminReply || ''); }}
                         className={`p-6 border-l-[8px] shadow-sm relative transition-all cursor-pointer group hover:translate-x-1 ${report.status === 'new' ? 'bg-white dark:bg-stone-800 border-red-600' : 'bg-stone-200 dark:bg-stone-800/50 border-stone-400 opacity-60 hover:opacity-100'}`}
                       >
                         <div className="flex justify-between items-center mb-2">
@@ -575,6 +599,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
                            <p className="text-[9px] font-bold text-stone-500 uppercase">{formatDate(report.timestamp)}</p>
                         </div>
                         <p className="text-sm font-serif italic text-stone-700 dark:text-stone-300 truncate pr-10">"{report.message}"</p>
+                        {report.status === 'replied' && <p className="text-[9px] font-black text-green-700 mt-2">✓ REPLIED</p>}
                         <p className="text-[9px] mt-2 font-bold uppercase text-stone-400">Click to open file</p>
                       </div>
                     ))}
@@ -589,7 +614,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
       {/* Report Detail Modal */}
       {selectedReport && (
         <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-           <div className="bg-[#f4f1ea] dark:bg-[#1c1917] w-full max-w-2xl shadow-2xl border-[12px] border-stone-300 dark:border-stone-600 relative transform rotate-1 flex flex-col transition-colors">
+           <div className="bg-[#f4f1ea] dark:bg-[#1c1917] w-full max-w-2xl shadow-2xl border-[12px] border-stone-300 dark:border-stone-600 relative transform rotate-1 flex flex-col transition-colors max-h-[90vh] overflow-y-auto">
               {/* Header */}
               <div className="bg-stone-200 dark:bg-stone-800 p-4 border-b-2 border-stone-400 dark:border-stone-500 flex justify-between items-center">
                   <div className="flex gap-2 items-center">
@@ -610,7 +635,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
                       <div className="text-right">
                           <p className="text-[9px] font-black uppercase text-stone-500 mb-1">Time Received</p>
                           <p className="text-lg font-mono font-bold">{formatDate(selectedReport.timestamp)}</p>
-                          <div className={`inline-block mt-2 px-2 py-0.5 text-[9px] font-black uppercase border ${selectedReport.status === 'new' ? 'bg-red-100 text-red-900 border-red-300' : 'bg-stone-200 dark:bg-stone-800 text-stone-500 border-stone-300'}`}>
+                          <div className={`inline-block mt-2 px-2 py-0.5 text-[9px] font-black uppercase border ${selectedReport.status === 'new' ? 'bg-red-100 text-red-900 border-red-300' : selectedReport.status === 'replied' ? 'bg-green-100 text-green-900 border-green-300' : 'bg-stone-200 dark:bg-stone-800 text-stone-500 border-stone-300'}`}>
                              Status: {selectedReport.status}
                           </div>
                       </div>
@@ -623,22 +648,47 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
                       </div>
                   </div>
 
+                  {/* REPLY SECTION */}
+                  <div className="mb-8 bg-stone-100 dark:bg-stone-800 p-4 border-l-4 border-stone-400 dark:border-stone-600">
+                    <p className="text-[9px] font-black uppercase text-stone-500 mb-2">Chief's Response (Reply)</p>
+                    {selectedReport.status === 'replied' ? (
+                       <div className="space-y-2">
+                           <div className="font-mono text-sm p-3 bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-600">
+                             {selectedReport.adminReply}
+                           </div>
+                           <p className="text-[9px] text-stone-400 text-right">Sent at {formatDate(selectedReport.replyTimestamp)}</p>
+                       </div>
+                    ) : (
+                       <div className="space-y-3">
+                           <textarea 
+                             value={replyText} 
+                             onChange={(e) => setReplyText(e.target.value)}
+                             className="w-full h-24 p-3 font-mono text-sm border border-stone-300 dark:border-stone-600 focus:border-stone-800 focus:outline-none dark:bg-stone-900 dark:text-stone-200" 
+                             placeholder="Type your orders here, Chief..."
+                           />
+                           <button 
+                             onClick={handleSendReply}
+                             disabled={isSendingReply}
+                             className="w-full bg-stone-800 text-white py-3 text-xs font-black uppercase hover:bg-black transition-colors"
+                           >
+                             {isSendingReply ? 'Transmitting...' : 'Send Reply'}
+                           </button>
+                       </div>
+                    )}
+                  </div>
+
                   <div className="flex gap-4">
-                      {selectedReport.status === 'new' ? (
+                      {selectedReport.status === 'new' && (
                           <button 
                             onClick={() => handleMarkAsRead(selectedReport)} 
                             className="flex-1 bg-red-900 text-white py-4 font-black uppercase text-xs shadow-lg hover:bg-red-800 border-b-4 border-red-950 active:translate-y-1 transition-all"
                           >
-                             Mark as Reviewed (Read)
+                             Mark as Reviewed (Read Only)
                           </button>
-                      ) : (
-                         <div className="flex-1 bg-stone-200 dark:bg-stone-800 text-stone-500 dark:text-stone-400 py-4 font-black uppercase text-xs text-center border-2 border-stone-300 dark:border-stone-600 cursor-not-allowed">
-                             File Archived
-                         </div>
                       )}
                       <button 
                         onClick={() => setSelectedReport(null)} 
-                        className="px-8 bg-white dark:bg-stone-700 text-stone-900 dark:text-stone-200 py-4 font-black uppercase text-xs border-b-4 border-stone-300 dark:border-stone-900 hover:bg-stone-50 dark:hover:bg-stone-600"
+                        className="px-8 bg-white dark:bg-stone-700 text-stone-900 dark:text-stone-200 py-4 font-black uppercase text-xs border-b-4 border-stone-300 dark:border-stone-900 hover:bg-stone-50 dark:hover:bg-stone-600 flex-1"
                       >
                         Close File
                       </button>
