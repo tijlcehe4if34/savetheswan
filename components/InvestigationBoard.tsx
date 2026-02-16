@@ -12,8 +12,9 @@ export const InvestigationBoard: React.FC<{
   isAdmin: boolean; 
   onOpenAdmin: () => void;
   onOpenRules: () => void;
+  onOpenStory: () => void;
   content: SiteContent;
-}> = ({ badge, name, userEmail, isAdmin, onOpenAdmin, onOpenRules, content }) => {
+}> = ({ badge, name, userEmail, isAdmin, onOpenAdmin, onOpenRules, onOpenStory, content }) => {
   const [narration, setNarration] = useState(content.monologue_default || "The mystery is waiting for you.");
   const [isNarrating, setIsNarrating] = useState(false);
   const [selectedClue, setSelectedClue] = useState<Clue | null>(null);
@@ -133,12 +134,19 @@ export const InvestigationBoard: React.FC<{
           <button onClick={() => setShowAddClueModal(true)} className="bg-stone-300 dark:bg-stone-800 dark:text-stone-200 dark:border-stone-600 text-stone-900 py-4 font-black uppercase text-xs shadow-xl border-b-4 border-stone-500 active:translate-y-1 transition-all hover:bg-white dark:hover:bg-stone-700">
             + Add a Finding
           </button>
+          
+          <button onClick={() => { onOpenStory(); logUserAction(userEmail, "Reviewing Case File"); }} className="bg-stone-800 text-stone-300 py-3 font-black uppercase text-[10px] border border-stone-600 hover:bg-stone-700 hover:text-white transition-colors tracking-widest">
+            ★ Read Case File
+          </button>
+
           <button onClick={() => setShowReportModal(true)} className="bg-red-800 text-white py-4 font-black uppercase text-xs shadow-xl border-b-4 border-red-950 active:translate-y-1 transition-all hover:bg-red-700">
             ⚠ Help! (Ask Chief)
           </button>
+          
           <button onClick={() => { onOpenRules(); logUserAction(userEmail, "Reading the Rules"); }} className="bg-stone-800 text-stone-400 py-3 font-black uppercase text-[10px] border border-stone-700 hover:bg-stone-700 hover:text-white transition-colors">
             Game Rules
           </button>
+
           {isAdmin && (
              <button onClick={() => { onOpenAdmin(); logUserAction(userEmail, "Entering Chiefs Office"); }} className="mt-4 bg-stone-900 border-2 border-stone-700 text-stone-300 py-2 font-black uppercase text-[10px] tracking-widest hover:bg-stone-800">
                ★ Chief's Office

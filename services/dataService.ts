@@ -268,6 +268,23 @@ export const logUserAction = async (email: string, action: string) => {
   }
 };
 
+export const updateUserNote = async (email: string, note: string) => {
+  if (isCloudActive()) {
+      try {
+        await updateDoc(doc(db, 'profiles', email), { adminNotes: note });
+        return;
+      } catch (e) {
+        if (handleCloudError(e)) { updateUserNote(email, note); return; }
+        throw e;
+      }
+  }
+  const profiles = getStorage<Record<string, UserRecord>>(KEY_PROFILES, {});
+  if (profiles[email]) {
+      profiles[email] = { ...profiles[email], adminNotes: note };
+      setStorage(KEY_PROFILES, profiles);
+  }
+};
+
 export const getUserInfoByEmail = async (email: string): Promise<Partial<UserRecord> | null> => {
   if (isCloudActive()) {
       try {
@@ -286,15 +303,16 @@ export const getAllUserProfiles = async (): Promise<any[]> => {
   if (isCloudActive()) {
       try {
         const snap = await getDocs(collection(db, 'profiles'));
-        const list = snap.docs.map(d => d.data());
-        return list.sort((a: any, b: any) => new Date(b.loginTime).getTime() - new Date(a.loginTime).getTime());
+        // Fallback: Ensure email exists (use doc ID) if missing in data
+        const list = snap.docs.map(d => ({ email: d.id, ...d.data() }));
+        return list.sort((a: any, b: any) => new Date(b.loginTime || 0).getTime() - new Date(a.loginTime || 0).getTime());
       } catch (e) {
         if (handleCloudError(e)) return getAllUserProfiles();
         return [];
       }
   }
   const profiles = getStorage<Record<string, UserRecord>>(KEY_PROFILES, {});
-  return Object.values(profiles).sort((a, b) => new Date(b.loginTime).getTime() - new Date(a.loginTime).getTime());
+  return Object.values(profiles).sort((a, b) => new Date(b.loginTime || 0).getTime() - new Date(a.loginTime || 0).getTime());
 };
 
 export const getAllClues = async (): Promise<Clue[]> => {

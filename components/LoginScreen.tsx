@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { loginUser, registerUser, logUserLogin, getUserInfoByEmail, setForceLocalMode } from '../services/dataService';
 import { SiteContent } from '../types';
@@ -66,8 +67,9 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, conten
       console.error("Auth error:", error);
       if (error.message === 'auth/email-already-in-use') {
         setError("That email is already registered in our files.");
-      } else if (error.message === 'auth/invalid-credential' || error.code === 'auth/invalid-credential') {
-        setError("Invalid credentials. Check your email and password.");
+      } else if (error.message === 'auth/invalid-credential' || error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.message.includes('invalid-credential')) {
+        setError("Access Denied. Incorrect key or unknown agent. If you are testing, try Offline Mode.");
+        setShowOfflineOption(true);
       } else if (error.message.includes('auth/too-many-requests') || error.code === 'auth/too-many-requests') {
         setError("Too many failed attempts. Access blocked temporarily.");
         setShowOfflineOption(true);
@@ -76,6 +78,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, conten
         setShowOfflineOption(true);
       } else {
         setError("Bureau access denied: " + (error.message || "Unknown error"));
+        setShowOfflineOption(true);
       }
     } finally {
       setLoading(false);
@@ -86,8 +89,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, conten
     setForceLocalMode(true);
     setError("System switched to Offline Mode. Please register or login locally.");
     setShowOfflineOption(false);
-    // Usually switching to offline means they need to register locally if they haven't before
-    if (!isRegistering) setIsRegistering(true);
+    if (!isRegistering && !email.includes('tijlvanherpen@icloud.com')) setIsRegistering(true);
   };
 
   return (
@@ -152,36 +154,34 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, conten
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="text-[9px] font-black uppercase text-stone-500 dark:text-stone-400">Vault Key (Password)</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-stone-100/50 dark:bg-stone-800 dark:text-stone-100 dark:border-stone-600 border-2 border-stone-300 p-3 text-sm font-mono focus:border-stone-800 dark:focus:border-stone-400 outline-none transition-all" placeholder="••••••••" required />
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-stone-100/50 dark:bg-stone-800 dark:text-stone-100 dark:border-stone-600 border-2 border-stone-300 p-3 text-sm font-mono focus:border-stone-800 dark:focus:border-stone-400 outline-none transition-all" placeholder="******" required />
             </div>
             {isRegistering && (
               <div className="space-y-1 animate-fade-in">
                 <label className="text-[9px] font-black uppercase text-stone-500 dark:text-stone-400">Confirm Key</label>
-                <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-stone-100/50 dark:bg-stone-800 dark:text-stone-100 dark:border-stone-600 border-2 border-stone-300 p-3 text-sm font-mono focus:border-stone-800 dark:focus:border-stone-400 outline-none transition-all" placeholder="••••••••" required={isRegistering} />
+                <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="w-full bg-stone-100/50 dark:bg-stone-800 dark:text-stone-100 dark:border-stone-600 border-2 border-stone-300 p-3 text-sm font-mono focus:border-stone-800 dark:focus:border-stone-400 outline-none transition-all" placeholder="******" required />
               </div>
             )}
           </div>
 
-          <button type="submit" disabled={loading} className={`w-full py-5 bg-stone-900 dark:bg-black dark:border-stone-600 text-stone-100 hover:bg-black transition-all uppercase tracking-widest font-black text-sm shadow-2xl border-b-4 border-black active:translate-y-1 ${loading ? 'opacity-70 cursor-wait' : ''}`}>
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                CONNECTING TO HQ...
-              </span>
-            ) : isRegistering ? "CREATE PERMANENT RECORD" : "ENTER PRECINCT"}
-          </button>
-          
-          <button type="button" onClick={() => { setIsRegistering(!isRegistering); setError(null); setShowOfflineOption(false); }} className="w-full text-center text-[10px] uppercase font-black text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 transition-colors pt-2 underline underline-offset-4 decoration-stone-300 dark:decoration-stone-600">
-            {isRegistering ? "Wait, I already have a record" : "Register as New Personnel"}
-          </button>
-        </form>
-
-        <div className="mt-8 pt-6 border-t border-stone-300/50 dark:border-stone-700 flex justify-between items-center opacity-40 grayscale">
-          <div className="text-[7px] uppercase font-black leading-tight text-stone-600 dark:text-stone-400">
-            Department of Public Safety<br/>LA Division // 1947
+          <div className="pt-4 flex flex-col gap-4">
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full bg-stone-900 dark:bg-black text-white py-4 font-black uppercase text-lg tracking-widest hover:bg-stone-800 shadow-xl border-b-4 border-stone-600 dark:border-stone-700 active:translate-y-1 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {loading ? "Processing..." : (isRegistering ? "Register Agent" : "Access Files")}
+            </button>
+            
+            <button 
+              type="button" 
+              onClick={() => { setIsRegistering(!isRegistering); setError(null); setShowOfflineOption(false); }}
+              className="text-xs font-bold uppercase tracking-widest text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200 transition-colors"
+            >
+              {isRegistering ? "Already have a badge? Login here." : "New Recruit? Register here."}
+            </button>
           </div>
-          <div className="w-10 h-10 border-2 border-stone-800 dark:border-stone-500 rounded-full flex items-center justify-center font-black text-xs dark:text-stone-400">LA</div>
-        </div>
+        </form>
       </div>
     </div>
   );

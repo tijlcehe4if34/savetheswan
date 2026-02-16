@@ -21,6 +21,8 @@ export interface UserRecord {
   cluesUnlocked?: number;
   lastAction?: string;
   lastActionTime?: string;
+  avatarUrl?: string;
+  adminNotes?: string;
 }
 
 export interface Report {
@@ -47,5 +49,6 @@ export enum AppState {
   INTRO_VIDEO = 'INTRO_VIDEO',
   INVESTIGATION = 'INVESTIGATION',
   ADMIN_PANEL = 'ADMIN_PANEL',
-  RULES = 'RULES'
+  RULES = 'RULES',
+  STORY = 'STORY'
 }

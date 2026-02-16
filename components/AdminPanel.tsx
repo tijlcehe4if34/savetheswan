@@ -1,12 +1,141 @@
+
 import React, { useEffect, useState, useCallback } from 'react';
 import { UserRecord, Clue, SiteContent, Report } from '../types';
-import { getAllUserProfiles, addClue, updateSiteContent, getReports, markReportRead, getAllClues, deleteClue, isCloudActive } from '../services/dataService';
+import { getAllUserProfiles, addClue, updateSiteContent, getReports, markReportRead, getAllClues, deleteClue, isCloudActive, updateUserNote } from '../services/dataService';
 
 interface AdminPanelProps {
   onExit: () => void;
   content: SiteContent;
   onContentUpdate: () => void;
 }
+
+// Internal Component for Individual Agent Cards
+const AgentRecord: React.FC<{ user: any, existingClues: Clue[], reports: Report[], getStatus: (s: string) => string }> = ({ user, existingClues, reports, getStatus }) => {
+  const [note, setNote] = useState(user.adminNotes || '');
+  const [isDirty, setIsDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+     if (!isDirty) setNote(user.adminNotes || '');
+  }, [user.adminNotes, isDirty]);
+
+  const handleSaveNote = async () => {
+      setSaving(true);
+      try {
+          await updateUserNote(user.email, note);
+          setIsDirty(false);
+      } catch(e) {
+          alert("Failed to save dossier note.");
+      } finally {
+          setSaving(false);
+      }
+  };
+
+  const status = getStatus(user.lastActionTime);
+  const userClueCount = existingClues.filter(c => c.addedBy === user.email).length;
+  const userReportCount = reports.filter(r => r.userEmail === user.email).length;
+
+  const formatDate = (val: any) => {
+    if (!val) return 'Recently';
+    try {
+      const d = new Date(val);
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (e) {
+      return 'N/A';
+    }
+  };
+
+  return (
+    <div className={`bg-[#f0ece3] dark:bg-stone-800 dark:border-stone-600 border-2 p-4 shadow-sm relative group transition-colors ${status === 'active' ? 'border-green-600 dark:border-green-800 order-first' : 'border-stone-400'}`}>
+      <div className="absolute top-2 right-2 flex items-center gap-2">
+         <div className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 flex items-center gap-1 border ${
+             status === 'active' ? 'bg-green-100 text-green-900 border-green-300' : 
+             status === 'idle' ? 'bg-yellow-100 text-yellow-900 border-yellow-300' : 
+             'bg-stone-200 text-stone-500 border-stone-300'
+         }`}>
+             <div className={`w-1.5 h-1.5 rounded-full ${
+                 status === 'active' ? 'bg-green-600 animate-pulse' : 
+                 status === 'idle' ? 'bg-yellow-600' : 'bg-stone-400'
+             }`}></div>
+             {status === 'active' ? 'ONLINE' : status === 'idle' ? 'IDLE' : 'OFFLINE'}
+         </div>
+      </div>
+      
+      <div className="mb-3 mt-4 flex items-center gap-3">
+         <div className="w-12 h-12 bg-stone-300 dark:bg-stone-700 border border-stone-500 overflow-hidden shadow-inner flex-shrink-0">
+           <img 
+             src={user.avatarUrl || "https://cdn-icons-png.flaticon.com/512/5234/5234727.png"} 
+             alt="Detective"
+             className="w-full h-full object-cover grayscale opacity-80"
+             onError={(e) => { (e.target as HTMLImageElement).src = "https://cdn-icons-png.flaticon.com/512/5234/5234727.png"; }}
+           />
+         </div>
+         <div className="overflow-hidden">
+           <p className="font-black text-xl uppercase tracking-tight text-stone-900 dark:text-stone-100 truncate">{user.name || "Unknown Agent"}</p>
+           <p className="text-[11px] font-bold text-stone-500 dark:text-stone-400 italic font-serif truncate">{user.email || "No ID"}</p>
+         </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 text-[10px] bg-white/50 dark:bg-black/30 p-2 border border-stone-300 dark:border-stone-600">
+          <div>
+            <span className="font-black uppercase block text-stone-400 text-[8px]">Station Name</span>
+            <span className="font-bold text-stone-700 dark:text-stone-300">{user.groupName || "Unassigned"}</span>
+          </div>
+          <div>
+            <span className="font-black uppercase block text-stone-400 text-[8px]">Partner(s)</span>
+            <span className="font-bold text-stone-700 dark:text-stone-300">{user.groupMembers || "Solo Agent"}</span>
+          </div>
+      </div>
+
+      {/* LIVE STATUS SECTION */}
+      <div className="mt-3 pt-3 border-t border-stone-300 dark:border-stone-600">
+        <p className="text-[9px] font-black uppercase text-stone-500 mb-1 flex items-center gap-2">
+          Live Location
+        </p>
+        <div className={`text-stone-200 p-2 border-l-4 shadow-sm ${status === 'active' ? 'bg-stone-800 border-green-600' : 'bg-stone-700 border-stone-500 opacity-60'}`}>
+           <p className="text-[11px] font-bold font-mono">
+             "{user.lastAction || "Awaiting signal..."}"
+           </p>
+           <p className="text-[8px] text-stone-500 mt-1 text-right uppercase font-black">
+             Last Signal: {formatDate(user.lastActionTime)}
+           </p>
+        </div>
+      </div>
+
+      {/* PRIVATE NOTE SECTION */}
+      <div className="mt-4 pt-4 border-t-2 border-dashed border-stone-400 dark:border-stone-700">
+         <p className="text-[9px] font-black uppercase text-red-900 dark:text-red-400 mb-2 flex items-center gap-2">
+           <span className="w-1.5 h-1.5 bg-red-800 rounded-full"></span>
+           Confidential Dossier (Admin Only)
+         </p>
+         <textarea 
+            value={note}
+            onChange={(e) => { setNote(e.target.value); setIsDirty(true); }}
+            placeholder="Private notes about this detective..."
+            className="w-full bg-stone-200 dark:bg-stone-900 border border-stone-400 dark:border-stone-600 text-stone-800 dark:text-stone-300 p-2 text-xs font-mono h-16 focus:border-red-800 focus:outline-none resize-none"
+         />
+         {isDirty && (
+           <button 
+             onClick={handleSaveNote}
+             disabled={saving}
+             className="w-full mt-2 bg-red-800 text-white text-[9px] font-black uppercase py-2 hover:bg-red-700 transition-colors"
+           >
+             {saving ? 'Updating Record...' : 'Update Dossier'}
+           </button>
+         )}
+      </div>
+
+      <div className="mt-3 flex gap-2 text-[9px] font-black uppercase">
+        <span className={`px-2 py-1 border ${userClueCount > 0 ? 'bg-blue-100 border-blue-300 text-blue-900' : 'bg-stone-200 border-stone-300 text-stone-500'}`}>
+          Found {userClueCount} Clue{userClueCount !== 1 ? 's' : ''}
+        </span>
+        <span className={`px-2 py-1 border ${userReportCount > 0 ? 'bg-red-100 border-red-300 text-red-900' : 'bg-stone-200 border-stone-300 text-stone-500'}`}>
+          Sent {userReportCount} Report{userReportCount !== 1 ? 's' : ''}
+        </span>
+      </div>
+    </div>
+  );
+};
 
 export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onContentUpdate }) => {
   const [profiles, setProfiles] = useState<any[]>([]);
@@ -40,7 +169,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
   const [submittingClue, setSubmittingClue] = useState(false);
 
   // Status Helper
-  const getStatus = (lastTime: string) => {
+  const getStatus = useCallback((lastTime: string) => {
     if (!lastTime) return 'offline';
     try {
         const diff = new Date().getTime() - new Date(lastTime).getTime();
@@ -48,7 +177,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
         if (diff < 60000 * 10) return 'idle'; // < 10 mins
         return 'offline';
     } catch(e) { return 'offline'; }
-  };
+  }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -72,7 +201,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [getStatus]);
 
   // Poll for data updates and listen for cross-tab storage events
   useEffect(() => {
@@ -250,72 +379,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
                 <h2 className="col-span-2 text-xl font-black uppercase mb-2 text-stone-900 dark:text-stone-200">
                     Personnel Roster ({profiles.length})
                 </h2>
-                {profiles.map((user) => {
-                  const userClueCount = existingClues.filter(c => c.addedBy === user.email).length;
-                  const userReportCount = reports.filter(r => r.userEmail === user.email).length;
-                  const status = getStatus(user.lastActionTime);
-                  
-                  return (
-                    <div key={user.email} className={`bg-[#f0ece3] dark:bg-stone-800 dark:border-stone-600 border-2 p-4 shadow-sm relative group transition-colors ${status === 'active' ? 'border-green-600 dark:border-green-800 order-first' : 'border-stone-400'}`}>
-                      <div className="absolute top-2 right-2 flex items-center gap-2">
-                         <div className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 flex items-center gap-1 border ${
-                             status === 'active' ? 'bg-green-100 text-green-900 border-green-300' : 
-                             status === 'idle' ? 'bg-yellow-100 text-yellow-900 border-yellow-300' : 
-                             'bg-stone-200 text-stone-500 border-stone-300'
-                         }`}>
-                             <div className={`w-1.5 h-1.5 rounded-full ${
-                                 status === 'active' ? 'bg-green-600 animate-pulse' : 
-                                 status === 'idle' ? 'bg-yellow-600' : 'bg-stone-400'
-                             }`}></div>
-                             {status === 'active' ? 'ONLINE' : status === 'idle' ? 'IDLE' : 'OFFLINE'}
-                         </div>
-                      </div>
-                      
-                      <div className="mb-3 mt-4">
-                        <p className="font-black text-xl uppercase tracking-tight text-stone-900 dark:text-stone-100">{user.name}</p>
-                        <p className="text-[11px] font-bold text-stone-500 dark:text-stone-400 italic font-serif">{user.email}</p>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3 text-[10px] bg-white/50 dark:bg-black/30 p-2 border border-stone-300 dark:border-stone-600">
-                          <div>
-                            <span className="font-black uppercase block text-stone-400 text-[8px]">Station Name</span>
-                            <span className="font-bold text-stone-700 dark:text-stone-300">{user.groupName || "Unassigned"}</span>
-                          </div>
-                          <div>
-                            <span className="font-black uppercase block text-stone-400 text-[8px]">Partner(s)</span>
-                            <span className="font-bold text-stone-700 dark:text-stone-300">{user.groupMembers || "Solo Agent"}</span>
-                          </div>
-                      </div>
-
-                      {/* LIVE STATUS SECTION */}
-                      <div className="mt-3 pt-3 border-t border-stone-300 dark:border-stone-600">
-                        <p className="text-[9px] font-black uppercase text-stone-500 mb-1 flex items-center gap-2">
-                          Live Location
-                        </p>
-                        <div className={`text-stone-200 p-2 border-l-4 shadow-sm ${status === 'active' ? 'bg-stone-800 border-green-600' : 'bg-stone-700 border-stone-500 opacity-60'}`}>
-                           <p className="text-[11px] font-bold font-mono">
-                             "{user.lastAction || "Awaiting signal..."}"
-                           </p>
-                           <p className="text-[8px] text-stone-500 mt-1 text-right uppercase font-black">
-                             Last Signal: {formatDate(user.lastActionTime)}
-                           </p>
-                        </div>
-                      </div>
-
-                      <div className="mt-3 flex gap-2 text-[9px] font-black uppercase">
-                        <span className={`px-2 py-1 border ${userClueCount > 0 ? 'bg-blue-100 border-blue-300 text-blue-900' : 'bg-stone-200 border-stone-300 text-stone-500'}`}>
-                          Found {userClueCount} Clue{userClueCount !== 1 ? 's' : ''}
-                        </span>
-                        <span className={`px-2 py-1 border ${userReportCount > 0 ? 'bg-red-100 border-red-300 text-red-900' : 'bg-stone-200 border-stone-300 text-stone-500'}`}>
-                          Sent {userReportCount} Report{userReportCount !== 1 ? 's' : ''}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
+                {profiles.map((user) => (
+                  <AgentRecord 
+                    key={user.email || user.id || Math.random().toString()} 
+                    user={user} 
+                    existingClues={existingClues} 
+                    reports={reports} 
+                    getStatus={getStatus} 
+                  />
+                ))}
                 {profiles.length === 0 && (
                     <div className="col-span-2 text-center p-8 bg-stone-200 dark:bg-stone-800 border border-stone-400 dark:border-stone-600">
                         <p className="italic font-serif text-stone-500 dark:text-stone-400">No detectives found in the registry.</p>
+                        <p className="text-[9px] uppercase font-black text-stone-400 dark:text-stone-500 mt-2">
+                           Mode: {cloudActive ? 'Cloud (Firebase)' : 'Local (Offline)'}
+                        </p>
                         <button onClick={fetchData} className="mt-2 text-xs font-black uppercase text-stone-500 underline">Check Again</button>
                     </div>
                 )}
