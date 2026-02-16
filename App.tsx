@@ -7,7 +7,7 @@ import { AdminPanel } from './components/AdminPanel';
 import { RulesPage } from './components/RulesPage';
 import { StoryGuide } from './components/StoryGuide';
 import { AppState, SiteContent } from './types';
-import { getSiteContent, ADMIN_EMAIL, getCurrentSession, getUserInfoByEmail } from './services/dataService';
+import { getSiteContent, ADMIN_EMAIL, getCurrentSession, getUserInfoByEmail, logoutUser } from './services/dataService';
 
 export default function App() {
   const [user, setUser] = useState<{email: string, name: string} | null>(null);
@@ -42,6 +42,12 @@ export default function App() {
     }
   };
 
+  const handleLogout = async () => {
+    await logoutUser();
+    setUser(null);
+    setCurrentState(AppState.LOBBY);
+  };
+
   const isAdmin = user?.email === ADMIN_EMAIL;
 
   return (
@@ -66,6 +72,7 @@ export default function App() {
             onOpenAdmin={() => setCurrentState(AppState.ADMIN_PANEL)}
             onOpenRules={() => setCurrentState(AppState.RULES)}
             onOpenStory={() => setCurrentState(AppState.STORY)}
+            onLogout={handleLogout}
             content={content}
         />
       )}

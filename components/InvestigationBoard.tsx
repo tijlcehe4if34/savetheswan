@@ -13,8 +13,9 @@ export const InvestigationBoard: React.FC<{
   onOpenAdmin: () => void;
   onOpenRules: () => void;
   onOpenStory: () => void;
+  onLogout: () => void;
   content: SiteContent;
-}> = ({ badge, name, userEmail, isAdmin, onOpenAdmin, onOpenRules, onOpenStory, content }) => {
+}> = ({ badge, name, userEmail, isAdmin, onOpenAdmin, onOpenRules, onOpenStory, onLogout, content }) => {
   const [narration, setNarration] = useState(content.monologue_default || "The mystery is waiting for you.");
   const [isNarrating, setIsNarrating] = useState(false);
   const [selectedClue, setSelectedClue] = useState<Clue | null>(null);
@@ -152,6 +153,10 @@ export const InvestigationBoard: React.FC<{
                ★ Chief's Office
              </button>
           )}
+
+          <button onClick={onLogout} className="mt-8 bg-transparent border border-stone-700 text-stone-500 hover:text-stone-300 hover:border-stone-500 py-2 font-black uppercase text-[9px] tracking-widest transition-colors">
+            End Shift (Logout)
+          </button>
         </div>
 
         <div className="mt-auto hidden md:block opacity-20 text-[10px] uppercase font-black tracking-widest text-stone-500">

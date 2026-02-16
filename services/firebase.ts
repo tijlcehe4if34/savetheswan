@@ -1,9 +1,9 @@
-
-import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getAuth } from "firebase/auth"; 
+import { initializeApp, getApp, getApps } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// --- CONFIGURATION FOR CLOUD SYNC ---
+// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyBIWPdOmUe_D234n0aB2aYDnnh8NO6yHBI",
   authDomain: "swannnn-e9b1b.firebaseapp.com",
@@ -14,19 +14,21 @@ const firebaseConfig = {
   measurementId: "G-N72PQM24G1"
 };
 
-let app;
-let auth: any;
-let db: any;
+// Initialize Firebase
+// We use a check to avoid re-initialization errors in development
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+
+// Initialize Services
+const auth = getAuth(app);
+const db = getFirestore(app);
+let analytics;
 
 try {
-  // Only initialize if we haven't already to handle hot-reloads gracefully
-  app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-  auth = getAuth(app);
-  db = getFirestore(app);
-  console.log("Swan Ransom: Cloud Uplink Configured");
+  analytics = getAnalytics(app);
 } catch (e) {
-  console.warn("Swan Ransom: Cloud Uplink Failed. System running in Local/Offline Mode.", e);
+  // Analytics might fail in some restricted environments or server-side renders
+  console.warn("Swan Ransom: Analytics not active.", e);
 }
 
-export { auth, db };
+export { auth, db, analytics };
 export default app;
