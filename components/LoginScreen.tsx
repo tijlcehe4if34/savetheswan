@@ -1,6 +1,5 @@
-
 import React, { useState } from 'react';
-import { loginUser, registerUser, logUserLogin, getUserInfoByEmail, setForceLocalMode } from '../services/dataService';
+import { loginUser, registerUser, logUserLogin, getUserInfoByEmail } from '../services/dataService';
 import { SiteContent } from '../types';
 
 interface LoginScreenProps {
@@ -18,12 +17,10 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, conten
   const [isRegistering, setIsRegistering] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showOfflineOption, setShowOfflineOption] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    setShowOfflineOption(false);
 
     const cleanEmail = email.toLowerCase().trim();
 
@@ -68,28 +65,17 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, conten
       if (error.message === 'auth/email-already-in-use') {
         setError("That email is already registered in our files.");
       } else if (error.message === 'auth/invalid-credential' || error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.message.includes('invalid-credential')) {
-        setError("Access Denied. Incorrect key or unknown agent. If you are testing, try Offline Mode.");
-        setShowOfflineOption(true);
+        setError("Access Denied. Incorrect key or unknown agent.");
       } else if (error.message.includes('auth/too-many-requests') || error.code === 'auth/too-many-requests') {
         setError("Too many failed attempts. Access blocked temporarily.");
-        setShowOfflineOption(true);
       } else if (error.code === 'permission-denied') {
-        setError("Cloud access denied. Try Offline Mode.");
-        setShowOfflineOption(true);
+        setError("Cloud access denied.");
       } else {
         setError("Bureau access denied: " + (error.message || "Unknown error"));
-        setShowOfflineOption(true);
       }
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleOfflineSwitch = () => {
-    setForceLocalMode(true);
-    setError("System switched to Offline Mode. Please register or login locally.");
-    setShowOfflineOption(false);
-    if (!isRegistering && !email.includes('tijlvanherpen@icloud.com')) setIsRegistering(true);
   };
 
   return (
@@ -115,14 +101,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, conten
               <p className="text-[10px] font-black uppercase text-red-900 dark:text-red-400 mb-1">Alert:</p>
               <p className="text-xs font-bold text-red-800 dark:text-red-200">{error}</p>
             </div>
-            {showOfflineOption && (
-              <button 
-                onClick={handleOfflineSwitch}
-                className="mt-2 bg-red-800 text-white text-[10px] font-black uppercase py-2 px-4 hover:bg-red-700 transition-colors w-full"
-              >
-                ⚠ Bypass Security (Use Offline Mode)
-              </button>
-            )}
           </div>
         )}
 
@@ -175,7 +153,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, conten
             
             <button 
               type="button" 
-              onClick={() => { setIsRegistering(!isRegistering); setError(null); setShowOfflineOption(false); }}
+              onClick={() => { setIsRegistering(!isRegistering); setError(null); }}
               className="text-xs font-bold uppercase tracking-widest text-stone-500 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-200 transition-colors"
             >
               {isRegistering ? "Already have a badge? Login here." : "New Recruit? Register here."}

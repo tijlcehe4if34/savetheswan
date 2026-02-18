@@ -1,7 +1,17 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { UserRecord, Clue, SiteContent, Report } from '../types';
-import { getAllUserProfiles, addClue, updateSiteContent, getReports, markReportRead, replyToReport, getAllClues, deleteClue, isCloudActive, updateUserNote } from '../services/dataService';
+import { 
+  addClue, 
+  updateSiteContent, 
+  markReportRead, 
+  replyToReport, 
+  deleteClue, 
+  updateUserNote,
+  subscribeToProfiles,
+  subscribeToReports,
+  subscribeToClues 
+} from '../services/dataService';
 
 interface AdminPanelProps {
   onExit: () => void;
@@ -141,13 +151,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
   const [profiles, setProfiles] = useState<any[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [existingClues, setExistingClues] = useState<Clue[]>([]);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'agents' | 'clues' | 'content' | 'reports'>('agents');
   const [notification, setNotification] = useState<{message: string, type: 'success' | 'error'} | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
-  
-  // Cloud Status
-  const [cloudActive, setCloudActive] = useState(false);
 
   // Report Filtering & Selection State
   const [reportFilter, setReportFilter] = useState<'all' | 'new' | 'read'>('new');
@@ -181,49 +187,36 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
     } catch(e) { return 'offline'; }
   }, []);
 
-  const fetchData = useCallback(async () => {
-    try {
-      const [pData, rData, cData] = await Promise.all([getAllUserProfiles(), getReports(), getAllClues()]);
-      
+  // Poll for data updates and listen for cross-tab storage events
+  useEffect(() => {
+    // Subscribe to real-time streams
+    const unsubProfiles = subscribeToProfiles((data) => {
       // Sort profiles: Active > Idle > Offline
-      const sortedProfiles = pData.sort((a, b) => {
+      const sorted = data.sort((a, b) => {
         const statusA = getStatus(a.lastActionTime);
         const statusB = getStatus(b.lastActionTime);
         const score = { 'active': 3, 'idle': 2, 'offline': 1 };
         // @ts-ignore
         return score[statusB] - score[statusA];
       });
-
-      setProfiles(sortedProfiles);
-      setReports(rData);
-      setExistingClues(cData);
+      setProfiles(sorted);
       setLastRefreshed(new Date());
-    } catch (err) {
-      console.error("Polling error", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [getStatus]);
+    });
 
-  // Poll for data updates and listen for cross-tab storage events
-  useEffect(() => {
-    setCloudActive(isCloudActive());
-    fetchData(); // Initial fetch
-    
-    // Polling fallback
-    const intervalId = setInterval(fetchData, 3000); 
+    const unsubReports = subscribeToReports((data) => {
+      setReports(data);
+    });
 
-    // Instant update from other tabs
-    const handleStorage = () => {
-        fetchData();
-    };
-    window.addEventListener('storage', handleStorage);
+    const unsubClues = subscribeToClues((data) => {
+      setExistingClues(data);
+    });
 
     return () => {
-        clearInterval(intervalId);
-        window.removeEventListener('storage', handleStorage);
+        unsubProfiles();
+        unsubReports();
+        unsubClues();
     };
-  }, [fetchData]);
+  }, [getStatus]);
 
   useEffect(() => {
     if (content) {
@@ -252,14 +245,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
     e.preventDefault();
     setSubmittingClue(true);
     try {
-      await addClue({ ...newClue, addedBy: 'CHIEF' });
+      await addClue({ ...newClue, addedBy: 'CHIEF', isUnlocked: true });
       showNotification("Clue successfully added to the board.", "success");
       setNewClue({
         title: '', description: '', imageUrl: '', location: '',
         dateFound: new Date().toISOString().split('T')[0],
         targetPlayer: ''
       });
-      fetchData();
       onContentUpdate();
     } catch (err) {
       showNotification("Could not add clue.", "error");
@@ -272,7 +264,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
       if(!window.confirm("Are you sure you want to delete this evidence?")) return;
       try {
           await deleteClue(id);
-          fetchData();
           showNotification("Evidence removed.", "success");
       } catch (e) {
           showNotification("Failed to delete.", "error");
@@ -307,7 +298,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
 
   const handleMarkAsRead = async (report: Report) => {
     await markReportRead(report.id);
-    fetchData(); // Refresh list to update status
     
     // Update local selected report to reflect status change
     if (selectedReport && selectedReport.id === report.id) {
@@ -322,7 +312,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
       await replyToReport(selectedReport.id, replyText);
       setReplyText('');
       showNotification("Reply sent to agent.", "success");
-      fetchData();
       // Update local state
       setSelectedReport({
         ...selectedReport,
@@ -366,13 +355,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
       <div className="max-w-6xl mx-auto bg-[#e5e1d8] dark:bg-[#1c1917] dark:border-stone-600 dark:text-stone-300 shadow-2xl min-h-[85vh] p-4 md:p-12 border-4 border-[#c2bdb1] relative flex flex-col transition-colors duration-500">
         {/* Live Feed Indicator */}
         <div className="absolute top-2 right-2 md:top-4 md:right-4 flex flex-col items-end gap-1">
-           <div className={`flex items-center gap-2 text-[9px] uppercase font-black tracking-widest ${cloudActive ? 'text-green-800 dark:text-green-400' : 'text-stone-500'}`}>
-             <span className={`w-2 h-2 rounded-full ${cloudActive ? 'bg-green-600 animate-pulse shadow-[0_0_10px_#16a34a]' : 'bg-stone-500'}`}></span>
-             {cloudActive ? 'CLOUD UPLINK ACTIVE' : 'OFFLINE ARCHIVE'}
+           <div className="flex items-center gap-2 text-[9px] uppercase font-black tracking-widest text-green-800 dark:text-green-400">
+             <span className="w-2 h-2 rounded-full bg-green-600 animate-pulse shadow-[0_0_10px_#16a34a]"></span>
+             CLOUD UPLINK ACTIVE
            </div>
-           <button onClick={fetchData} className="text-[9px] underline text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 font-bold uppercase">
-              Last Sync: {lastRefreshed.toLocaleTimeString()} (Click to refresh)
-           </button>
+           <div className="text-[9px] text-stone-400 font-bold uppercase">
+              Last Pulse: {lastRefreshed.toLocaleTimeString()}
+           </div>
         </div>
 
         <div className="relative z-10">
@@ -415,10 +404,6 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
                 {profiles.length === 0 && (
                     <div className="col-span-2 text-center p-8 bg-stone-200 dark:bg-stone-800 border border-stone-400 dark:border-stone-600">
                         <p className="italic font-serif text-stone-500 dark:text-stone-400">No detectives found in the registry.</p>
-                        <p className="text-[9px] uppercase font-black text-stone-400 dark:text-stone-500 mt-2">
-                           Mode: {cloudActive ? 'Cloud (Firebase)' : 'Local (Offline)'}
-                        </p>
-                        <button onClick={fetchData} className="mt-2 text-xs font-black uppercase text-stone-500 underline">Check Again</button>
                     </div>
                 )}
               </section>

@@ -3,7 +3,13 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Clue, SiteContent, Report } from '../types';
 import { TypewriterText } from './TypewriterText';
 import { getNoirNarration } from '../services/geminiService';
-import { getCaseClues, addReport, addClue, logUserAction, getUserReports } from '../services/dataService';
+import { 
+  addReport, 
+  addClue, 
+  logUserAction, 
+  subscribeToReports, 
+  subscribeToClues 
+} from '../services/dataService';
 
 export const InvestigationBoard: React.FC<{ 
   badge: string; 
@@ -42,30 +48,35 @@ export const InvestigationBoard: React.FC<{
     }
   }, [userEmail]);
 
-  const fetchClues = useCallback(async () => {
-    if (!userEmail) return;
-    const data = await getCaseClues(userEmail);
-    setClues(data);
-    setIsInitialLoading(false);
-  }, [userEmail]);
-
-  const fetchMyReports = useCallback(async () => {
-    if (!userEmail) return;
-    const data = await getUserReports(userEmail);
-    setMyReports(data);
-  }, [userEmail]);
-
+  // Real-time Subscriptions
   useEffect(() => {
-    if (userEmail) {
-      fetchClues();
-      fetchMyReports();
-      const interval = setInterval(() => {
-        fetchClues();
-        fetchMyReports();
-      }, 15000); 
-      return () => clearInterval(interval);
-    }
-  }, [userEmail, fetchClues, fetchMyReports]);
+    if (!userEmail) return;
+
+    // Subscribe to Clues
+    const unsubClues = subscribeToClues((allClues) => {
+      // Filter visible clues
+      const visibleClues = allClues.filter(c => 
+        !c.targetPlayer || 
+        c.targetPlayer === userEmail || 
+        c.addedBy === userEmail ||
+        (c.addedBy === 'CHIEF' && !c.targetPlayer)
+      ).sort((a, b) => new Date(b.dateFound).getTime() - new Date(a.dateFound).getTime());
+      
+      setClues(visibleClues);
+      setIsInitialLoading(false);
+    });
+
+    // Subscribe to Reports (to see replies instantly)
+    const unsubReports = subscribeToReports((allReports) => {
+      const myOwn = allReports.filter(r => r.userEmail === userEmail).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setMyReports(myOwn);
+    });
+
+    return () => {
+      unsubClues();
+      unsubReports();
+    };
+  }, [userEmail]);
 
   const fetchNewNarration = async (context: string) => {
     setIsNarrating(true);
@@ -92,8 +103,6 @@ export const InvestigationBoard: React.FC<{
     try {
       await addReport({ userEmail, userName: name, message: reportText });
       setReportText('');
-      // Don't close immediately, let them see it added to the list
-      await fetchMyReports();
       setNarration("A signal was sent to HQ. Help is on the way, I just have to sit tight.");
       logUserAction(userEmail, "Waiting for HQ response");
     } catch (err) { 
@@ -111,7 +120,8 @@ export const InvestigationBoard: React.FC<{
       await addClue({ 
         ...newClue, 
         dateFound: new Date().toISOString().split('T')[0],
-        addedBy: userEmail 
+        addedBy: userEmail,
+        isUnlocked: true 
       });
       setNewClue({ 
         title: '', 
@@ -120,7 +130,6 @@ export const InvestigationBoard: React.FC<{
         imageUrl: 'https://images.unsplash.com/photo-1598124838120-020cb38520e1?q=80&w=2070&auto=format&fit=crop' 
       });
       setShowAddClueModal(false);
-      await fetchClues();
       setNarration(`I found something new: ${newClue.title}. The board is starting to make sense.`);
       logUserAction(userEmail, "Reviewing updated board");
     } catch (err) { 
