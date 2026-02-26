@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { loginUser, registerUser, logUserLogin, getUserInfoByEmail } from '../services/dataService';
+import { loginUser, registerUser, logUserLogin, getUserInfoByEmail, ADMIN_EMAIL } from '../services/dataService';
 import { SiteContent } from '../types';
 
 interface LoginScreenProps {
@@ -38,7 +38,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, conten
     try {
       if (isRegistering) {
         await registerUser(cleanEmail, password, name || "New Agent");
-        const displayName = name || (cleanEmail === 'tijlvanherpen@icloud.com' ? "Chief Commissioner" : "New Agent");
+        const displayName = name || (cleanEmail === ADMIN_EMAIL ? "Chief Commissioner" : "New Agent");
         await logUserLogin({ 
           email: cleanEmail, 
           name: displayName, 
@@ -49,7 +49,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, conten
       } else {
         await loginUser(cleanEmail, password);
         const existingInfo = await getUserInfoByEmail(cleanEmail);
-        const displayName = existingInfo?.name || (cleanEmail === 'tijlvanherpen@icloud.com' ? "Chief Commissioner" : "Detective");
+        const displayName = existingInfo?.name || (cleanEmail === ADMIN_EMAIL ? "Chief Commissioner" : "Detective");
         
         // Log the activity even for existing users
         await logUserLogin({ 

@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { LoginScreen } from './components/LoginScreen';
 import { InvestigationBoard } from './components/InvestigationBoard';
 import { VideoIntro } from './components/VideoIntro';
@@ -51,33 +52,68 @@ export default function App() {
   const isAdmin = user?.email === ADMIN_EMAIL;
 
   return (
-    <>
+    <AnimatePresence mode="wait">
       {currentState === AppState.LOBBY && (
-        <LoginScreen onLoginSuccess={handleLogin} content={content} />
+        <motion.div
+          key="lobby"
+          initial={{ opacity: 0, filter: 'blur(10px)' }}
+          animate={{ opacity: 1, filter: 'blur(0px)' }}
+          exit={{ opacity: 0, filter: 'blur(10px)' }}
+          transition={{ duration: 1.5, ease: "easeInOut" }}
+          className="min-h-screen w-full"
+        >
+          <LoginScreen onLoginSuccess={handleLogin} content={content} />
+        </motion.div>
       )}
 
       {currentState === AppState.INTRO_VIDEO && (
-        <VideoIntro 
-            onComplete={() => setCurrentState(AppState.INVESTIGATION)} 
-            content={content}
-        />
+        <motion.div
+          key="intro"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 1, ease: "easeInOut" }}
+          className="min-h-screen w-full"
+        >
+          <VideoIntro 
+              onComplete={() => setCurrentState(AppState.INVESTIGATION)} 
+              content={content}
+          />
+        </motion.div>
       )}
 
       {currentState === AppState.INVESTIGATION && user && (
-        <InvestigationBoard 
-            badge="47" 
-            name={user.name} 
-            userEmail={user.email}
-            isAdmin={isAdmin}
-            onOpenAdmin={() => setCurrentState(AppState.ADMIN_PANEL)}
-            onOpenRules={() => setCurrentState(AppState.RULES)}
-            onOpenStory={() => setCurrentState(AppState.STORY)}
-            onLogout={handleLogout}
-            content={content}
-        />
+        <motion.div
+          key="investigation"
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 1.02 }}
+          transition={{ duration: 1.2, ease: "easeInOut" }}
+          className="min-h-screen w-full"
+        >
+          <InvestigationBoard 
+              badge="47" 
+              name={user.name} 
+              userEmail={user.email}
+              isAdmin={isAdmin}
+              onOpenAdmin={() => setCurrentState(AppState.ADMIN_PANEL)}
+              onOpenRules={() => setCurrentState(AppState.RULES)}
+              onOpenStory={() => setCurrentState(AppState.STORY)}
+              onLogout={handleLogout}
+              content={content}
+          />
+        </motion.div>
       )}
 
       {currentState === AppState.ADMIN_PANEL && (
+        <motion.div
+          key="admin"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="min-h-screen w-full"
+        >
           <AdminPanel 
             onExit={() => setCurrentState(AppState.INVESTIGATION)} 
             content={content}
@@ -86,20 +122,39 @@ export default function App() {
                 setContent(c);
             }}
           />
+        </motion.div>
       )}
 
       {currentState === AppState.RULES && (
+        <motion.div
+          key="rules"
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -20 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="min-h-screen w-full"
+        >
           <RulesPage 
             isAdmin={isAdmin}
             onExit={() => setCurrentState(AppState.INVESTIGATION)}
           />
+        </motion.div>
       )}
 
       {currentState === AppState.STORY && (
+        <motion.div
+          key="story"
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 20 }}
+          transition={{ duration: 0.8, ease: "easeOut" }}
+          className="min-h-screen w-full"
+        >
           <StoryGuide 
             onExit={() => setCurrentState(AppState.INVESTIGATION)}
           />
+        </motion.div>
       )}
-    </>
+    </AnimatePresence>
   );
 }

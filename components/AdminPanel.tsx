@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useCallback } from 'react';
 import { UserRecord, Clue, SiteContent, Report } from '../types';
 import { 
@@ -157,6 +156,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
 
   // Report Filtering & Selection State
   const [reportFilter, setReportFilter] = useState<'all' | 'new' | 'read'>('new');
+  const [agentFilter, setAgentFilter] = useState<string>('');
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [replyText, setReplyText] = useState('');
   const [isSendingReply, setIsSendingReply] = useState(false);
@@ -338,8 +338,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
 
   // Filter Logic
   const filteredReports = reports.filter(r => {
-    if (reportFilter === 'all') return true;
-    return r.status === reportFilter || (reportFilter === 'read' && r.status === 'replied'); // Replied also counts as read/archived
+    // Status Filter
+    const statusMatch = (reportFilter === 'all') 
+      ? true 
+      : (r.status === reportFilter || (reportFilter === 'read' && r.status === 'replied'));
+
+    // Agent Filter
+    const agentMatch = agentFilter ? r.userEmail === agentFilter : true;
+    
+    return statusMatch && agentMatch;
   });
 
   const activeAgentCount = profiles.filter(p => getStatus(p.lastActionTime) === 'active').length;
@@ -542,7 +549,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
               <section className="animate-fade-in space-y-6">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b-2 border-stone-800 dark:border-stone-500 pb-2 gap-4">
                     <h2 className="text-xl font-black uppercase text-stone-900 dark:text-stone-100">Detective Help Requests</h2>
-                    <div className="flex gap-2 flex-wrap">
+                    <div className="flex gap-2 flex-wrap items-center">
                         <button 
                             onClick={() => setReportFilter('new')} 
                             className={`px-3 py-1 text-[10px] uppercase font-black border border-stone-400 transition-all ${reportFilter === 'new' ? 'bg-red-800 text-white border-red-900' : 'bg-white hover:bg-stone-200 text-stone-900'}`}
@@ -561,12 +568,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
                         >
                             All Files
                         </button>
+                        <select 
+                            value={agentFilter} 
+                            onChange={(e) => setAgentFilter(e.target.value)}
+                            className="px-3 py-1 text-[10px] uppercase font-black border border-stone-400 bg-white dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-900 dark:text-stone-200 focus:outline-none ml-2"
+                        >
+                            <option value="">All Detectives</option>
+                            {profiles.map(p => (
+                                <option key={p.email} value={p.email}>{p.name}</option>
+                            ))}
+                        </select>
                     </div>
                 </div>
 
                 {filteredReports.length === 0 ? (
                   <p className="italic bg-stone-100 dark:bg-stone-800 p-10 text-center border-2 border-dashed border-stone-400 text-stone-500 dark:text-stone-400">
-                      {reportFilter === 'new' ? "No new signals received." : "Case file empty."}
+                      {reportFilter === 'new' && !agentFilter ? "No new signals received." : 
+                       agentFilter ? "No files found for this detective." : "Case file empty."}
                   </p>
                 ) : (
                   <div className="grid grid-cols-1 gap-4">
