@@ -1,14 +1,15 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Clue, SiteContent, Report } from '../types';
+import { Clue, SiteContent, Report, UserRecord } from '../types';
 import { TypewriterText } from './TypewriterText';
 import { getNoirNarration } from '../services/geminiService';
 import { 
   addReport, 
   addClue, 
   logUserAction, 
-  subscribeToReports, 
-  subscribeToClues 
+  subscribeToMyReports, 
+  subscribeToClues,
+  subscribeToMyProfile
 } from '../services/dataService';
 
 export const InvestigationBoard: React.FC<{ 
@@ -32,6 +33,7 @@ export const InvestigationBoard: React.FC<{
   const [reportText, setReportText] = useState('');
   const [isSendingReport, setIsSendingReport] = useState(false);
   const [myReports, setMyReports] = useState<Report[]>([]);
+  const [userProfile, setUserProfile] = useState<UserRecord | null>(null);
   
   const [showAddClueModal, setShowAddClueModal] = useState(false);
   const [isAddingClue, setIsAddingClue] = useState(false);
@@ -66,15 +68,21 @@ export const InvestigationBoard: React.FC<{
       setIsInitialLoading(false);
     });
 
-    // Subscribe to Reports (to see replies instantly)
-    const unsubReports = subscribeToReports((allReports) => {
-      const myOwn = allReports.filter(r => r.userEmail === userEmail).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      setMyReports(myOwn);
+    // Subscribe to My Reports (to see replies instantly)
+    const unsubReports = subscribeToMyReports(userEmail, (myOwn) => {
+      const sorted = myOwn.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      setMyReports(sorted);
+    });
+
+    // Subscribe to My Profile (to get cluesUnlocked)
+    const unsubProfiles = subscribeToMyProfile(userEmail, (profile) => {
+      if (profile) setUserProfile(profile);
     });
 
     return () => {
       unsubClues();
       unsubReports();
+      unsubProfiles();
     };
   }, [userEmail]);
 
@@ -140,6 +148,8 @@ export const InvestigationBoard: React.FC<{
   };
 
   const hasRepliedReport = myReports.some(r => r.status === 'replied');
+  const userCluesCount = clues.filter(c => c.addedBy === userEmail).length;
+  const hasUnfiledClues = userProfile?.cluesUnlocked ? userCluesCount < userProfile.cluesUnlocked : false;
 
   return (
     <div className="min-h-screen bg-[#080808] text-stone-300 p-4 md:p-12 pb-32 relative flex flex-col md:flex-row gap-8 overflow-x-hidden transition-colors duration-500">
@@ -155,8 +165,9 @@ export const InvestigationBoard: React.FC<{
         </div>
 
         <div className="grid grid-cols-1 gap-4">
-          <button onClick={() => setShowAddClueModal(true)} className="bg-stone-300 dark:bg-stone-800 dark:text-stone-200 dark:border-stone-600 text-stone-900 py-4 font-black uppercase text-xs shadow-xl border-b-4 border-stone-500 active:translate-y-1 transition-all hover:bg-white dark:hover:bg-stone-700">
+          <button onClick={() => setShowAddClueModal(true)} className="bg-stone-300 dark:bg-stone-800 dark:text-stone-200 dark:border-stone-600 text-stone-900 py-4 font-black uppercase text-xs shadow-xl border-b-4 border-stone-500 active:translate-y-1 transition-all hover:bg-white dark:hover:bg-stone-700 relative">
             + Add a Finding
+            {hasUnfiledClues && <span className="absolute top-2 right-2 w-3 h-3 bg-red-600 rounded-full animate-pulse shadow-[0_0_8px_rgba(220,38,38,0.8)] border border-red-900"></span>}
           </button>
           
           <button onClick={() => { onOpenStory(); logUserAction(userEmail, "Reviewing Case File"); }} className="bg-stone-800 text-stone-300 py-3 font-black uppercase text-[10px] border border-stone-600 hover:bg-stone-700 hover:text-white transition-colors tracking-widest">

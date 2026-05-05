@@ -61,15 +61,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, conten
         onLoginSuccess(cleanEmail, displayName);
       }
     } catch (error: any) {
-      console.error("Auth error:", error);
-      if (error.message === 'auth/email-already-in-use') {
+      console.error("Auth error caught:", error);
+      const code = error.code || error.message;
+      
+      if (code === 'auth/email-already-in-use') {
         setError("That email is already registered in our files.");
-      } else if (error.message === 'auth/invalid-credential' || error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.message.includes('invalid-credential')) {
-        setError("Access Denied. Incorrect key or unknown agent.");
-      } else if (error.message.includes('auth/too-many-requests') || error.code === 'auth/too-many-requests') {
+      } else if (code === 'auth/operation-not-allowed') {
+        setError("Email/Password login is not enabled in Firebase Console. Please enable it in the Authentication tab of your Firebase project.");
+      } else if (code === 'auth/invalid-credential' || code === 'auth/user-not-found' || code === 'auth/wrong-password') {
+        setError("Access Denied. Incorrect email or password. If you haven't registered, click 'Register' below.");
+      } else if (code === 'auth/too-many-requests') {
         setError("Too many failed attempts. Access blocked temporarily.");
-      } else if (error.code === 'permission-denied') {
-        setError("Cloud access denied.");
+      } else if (code === 'permission-denied') {
+        setError("Cloud access denied. You don't have permission for this file.");
       } else {
         setError("Bureau access denied: " + (error.message || "Unknown error"));
       }

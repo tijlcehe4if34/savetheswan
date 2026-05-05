@@ -1,30 +1,22 @@
-import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getAnalytics } from "firebase/analytics";
+import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
+import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import firebaseConfig from '../firebase-applet-config.json';
 
-// Your web app's Firebase configuration
-const firebaseConfig = {
-  apiKey: "AIzaSyAmjck4Buf2a50RK9UkIW1I_jByEyp6f2A",
-  authDomain: "swam-offical.firebaseapp.com",
-  projectId: "swam-offical",
-  storageBucket: "swam-offical.firebasestorage.app",
-  messagingSenderId: "281951229381",
-  appId: "1:281951229381:web:07d6b2adf7f5bea329e7ac"
-};
-
-// Initialize Firebase (Modular)
 const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+export const auth = getAuth(app);
 
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-let analytics;
-try {
-  analytics = getAnalytics(app);
-} catch (e) {
-  console.warn("Swan Ransom: Analytics not active.", e);
+async function testConnection() {
+  try {
+    await getDocFromServer(doc(db, 'test', 'connection'));
+    console.log("Firebase connection successful");
+  } catch (error) {
+    if(error instanceof Error && error.message.includes('the client is offline')) {
+      console.error("Please check your Firebase configuration or network.");
+    }
+  }
 }
+testConnection();
 
-export { auth, db, analytics };
 export default app;

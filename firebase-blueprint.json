@@ -1,0 +1,85 @@
+{
+  "entities": {
+    "Profile": {
+      "title": "Agent Profile",
+      "description": "Information about a detective/agent.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "groupName": { "type": "string" },
+        "groupMembers": { "type": "string" },
+        "loginTime": { "type": "string", "format": "date-time" },
+        "cluesUnlocked": { "type": "number" },
+        "lastAction": { "type": "string" },
+        "lastActionTime": { "type": "string", "format": "date-time" },
+        "adminNotes": { "type": "string" }
+      },
+      "required": ["email", "name"]
+    },
+    "SiteContent": {
+      "title": "Site Content",
+      "description": "Global configuration and text for the site.",
+      "type": "object",
+      "properties": {
+        "intro_title": { "type": "string" },
+        "intro_subtitle": { "type": "string" },
+        "intro_desc": { "type": "string" },
+        "intro_video_url": { "type": "string" },
+        "manifest_heading": { "type": "string" },
+        "monologue_default": { "type": "string" },
+        "login_heading": { "type": "string" },
+        "intake_heading": { "type": "string" }
+      }
+    },
+    "Clue": {
+      "title": "Investigation Clue",
+      "description": "Evidence found during the investigation.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "location": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "dateFound": { "type": "string" },
+        "addedBy": { "type": "string" },
+        "isUnlocked": { "type": "boolean" },
+        "targetPlayer": { "type": "string" }
+      },
+      "required": ["title", "description"]
+    },
+    "Report": {
+      "title": "Field Report",
+      "description": "A report sent by an agent to headquarters.",
+      "type": "object",
+      "properties": {
+        "userEmail": { "type": "string" },
+        "userName": { "type": "string" },
+        "message": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["new", "read", "replied"] },
+        "adminReply": { "type": "string" },
+        "replyTimestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userEmail", "message", "status"]
+    }
+  },
+  "firestore": {
+    "profiles/{email}": {
+      "schema": "Profile",
+      "description": "User profiles indexed by email."
+    },
+    "content/{contentId}": {
+      "schema": "SiteContent",
+      "description": "Global site content (e.g., 'main', 'rules')."
+    },
+    "clues/{clueId}": {
+      "schema": "Clue",
+      "description": "Investigation clues."
+    },
+    "reports/{reportId}": {
+      "schema": "Report",
+      "description": "Agent reports and requests for help."
+    }
+  }
+}

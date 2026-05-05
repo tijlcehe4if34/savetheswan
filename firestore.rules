@@ -1,0 +1,57 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isEmail(email) {
+      return isSignedIn() && request.auth.token.email == email;
+    }
+    
+    function isAdmin() {
+      return isEmail('tijlvanherpen@icloud.com');
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128;
+    }
+
+    // Profiles: Users can read/write their own profiles. Admins can do anything.
+    match /profiles/{email} {
+      allow read, write: if isAdmin() || isEmail(email);
+    }
+
+    // Content: Publicly readable, admin writable.
+    match /content/{contentId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Connection test document
+    match /test/connection {
+      allow read: if true;
+    }
+
+    // Clues: Readable by everyone, writable by signed-in users.
+    match /clues/{clueId} {
+      allow read: if true;
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin();
+    }
+
+    // Reports: Users can create and read their own. Admins can read/update.
+    match /reports/{reportId} {
+      allow create: if isSignedIn();
+      allow read: if isAdmin() || (isSignedIn() && resource.data.userEmail == request.auth.token.email);
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}
