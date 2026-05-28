@@ -597,7 +597,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
                         <div className="flex justify-between items-center mb-2">
                            <div className="flex items-center gap-3">
                               {report.status === 'new' && <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>}
-                              <p className="font-black uppercase text-lg leading-none group-hover:underline decoration-red-900 underline-offset-4 text-stone-900 dark:text-stone-100">{report.userName}</p>
+                              <div className="flex flex-col">
+                                <p className="font-black uppercase text-lg leading-none group-hover:underline decoration-red-900 underline-offset-4 text-stone-900 dark:text-stone-100">{report.userName}</p>
+                                <span className="text-[8px] font-mono font-bold text-red-800 dark:text-red-500 uppercase mt-1">Station: {report.groupName || "UNIT-47"}</span>
+                              </div>
                            </div>
                            <p className="text-[9px] font-bold text-stone-500 uppercase">{formatDate(report.timestamp)}</p>
                         </div>
@@ -621,8 +624,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
               {/* Header */}
               <div className="bg-stone-200 dark:bg-stone-800 p-4 border-b-2 border-stone-400 dark:border-stone-500 flex justify-between items-center">
                   <div className="flex gap-2 items-center">
-                      <div className="w-3 h-3 bg-red-800 rounded-full"></div>
-                      <h3 className="font-black uppercase text-xl tracking-tighter text-stone-900 dark:text-stone-100">Confidential Wire</h3>
+                      <div className="w-3 h-3 bg-amber-800 rounded-full"></div>
+                      <h3 className="font-black uppercase text-xl tracking-tighter text-stone-900 dark:text-stone-100">Room Clue Request</h3>
                   </div>
                   <button onClick={() => setSelectedReport(null)} className="text-stone-500 hover:text-red-900 font-black text-2xl leading-none">×</button>
               </div>
@@ -653,7 +656,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
 
                   {/* REPLY SECTION */}
                   <div className="mb-8 bg-stone-100 dark:bg-stone-800 p-4 border-l-4 border-stone-400 dark:border-stone-600">
-                    <p className="text-[9px] font-black uppercase text-stone-500 mb-2">Chief's Response (Reply)</p>
+                    <p className="text-[9px] font-black uppercase text-stone-500 mb-2">HQ Clue Dispatch (Response)</p>
                     {selectedReport.status === 'replied' ? (
                        <div className="space-y-2">
                            <div className="font-mono text-sm p-3 bg-white dark:bg-stone-900 border border-stone-300 dark:border-stone-600">
@@ -667,14 +670,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
                              value={replyText} 
                              onChange={(e) => setReplyText(e.target.value)}
                              className="w-full h-24 p-3 font-mono text-sm border border-stone-300 dark:border-stone-600 focus:border-stone-800 focus:outline-none dark:bg-stone-900 dark:text-stone-200" 
-                             placeholder="Type your orders here, Chief..."
+                             placeholder="Type your hint or clue response to transmit back to the room laptop..."
                            />
                            <button 
                              onClick={handleSendReply}
                              disabled={isSendingReply}
-                             className="w-full bg-stone-800 text-white py-3 text-xs font-black uppercase hover:bg-black transition-colors"
+                             className="w-full bg-amber-900 text-white py-3 text-xs font-black uppercase hover:bg-amber-800 transition-colors shadow-lg border-b-2 border-stone-900"
                            >
-                             {isSendingReply ? 'Transmitting...' : 'Send Reply'}
+                             {isSendingReply ? 'Transmitting Clue/Hint...' : 'Transmit Clue/Hint'}
                            </button>
                        </div>
                     )}

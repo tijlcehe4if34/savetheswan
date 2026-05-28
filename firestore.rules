@@ -12,7 +12,7 @@ service cloud.firestore {
     }
     
     function isEmail(email) {
-      return isSignedIn() && request.auth.token.email == email;
+      return isSignedIn() && ('email' in request.auth.token) && request.auth.token.email.lower() == email.lower();
     }
     
     function isAdmin() {
@@ -49,7 +49,7 @@ service cloud.firestore {
     // Reports: Users can create and read their own. Admins can read/update.
     match /reports/{reportId} {
       allow create: if isSignedIn();
-      allow read: if isAdmin() || (isSignedIn() && resource.data.userEmail == request.auth.token.email);
+      allow read: if isAdmin() || (isSignedIn() && ('email' in request.auth.token) && resource.data.userEmail.lower() == request.auth.token.email.lower());
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }

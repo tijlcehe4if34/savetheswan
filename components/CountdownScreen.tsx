@@ -41,6 +41,17 @@ export const CountdownScreen: React.FC<CountdownScreenProps> = ({ targetDate, on
     <div className="min-h-screen bg-black text-stone-300 flex flex-col items-center justify-center p-6 relative overflow-hidden">
       <div className="fixed inset-0 pointer-events-none noir-vignette opacity-70 z-10"></div>
       
+      {/* Station Exit Action */}
+      <div className="absolute top-6 right-6 z-30">
+        <button
+          onClick={onLogout}
+          className="group flex items-center gap-2 px-4 py-2 border border-stone-800 hover:border-amber-900 bg-[#090909] text-stone-500 hover:text-amber-500 transition-all font-mono text-[9px] uppercase tracking-widest shadow-md"
+        >
+          <span>Exit Station // Log Out</span>
+          <span className="text-stone-700 group-hover:text-amber-500 transition-transform group-hover:translate-x-0.5">→</span>
+        </button>
+      </div>
+      
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -50,8 +61,11 @@ export const CountdownScreen: React.FC<CountdownScreenProps> = ({ targetDate, on
         <h1 className="text-4xl md:text-6xl font-serif italic mb-2 text-stone-100 uppercase tracking-widest border-b border-stone-800 pb-4">
           Case Suspended
         </h1>
-        <p className="text-stone-500 font-mono text-xs uppercase tracking-[0.3em] mb-12">
+        <p className="text-stone-500 font-mono text-xs uppercase tracking-[0.3em] mb-4">
           The files are locked. The witness is silent.
+        </p>
+        <p className="text-amber-500/80 font-mono text-[10px] uppercase tracking-[0.2em] mb-12">
+          Scheduled Opening: {targetDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} at {targetDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
         </p>
 
         {timeLeft ? (
@@ -89,9 +103,9 @@ export const CountdownScreen: React.FC<CountdownScreenProps> = ({ targetDate, on
           
           <button 
             onClick={onLogout}
-            className="text-[10px] font-black uppercase tracking-widest text-stone-600 hover:text-stone-300 transition-colors border-t border-stone-800 pt-4 w-full"
+            className="text-[10px] font-mono font-bold uppercase tracking-widest text-amber-600/90 hover:text-amber-400 transition-colors border-t border-stone-800/80 pt-4 w-full flex items-center justify-center gap-1.5"
           >
-            Switch Agent Credentials // Return to Lobby
+            [←] Sign Out Current Agent Credentials
           </button>
         </div>
       </motion.div>

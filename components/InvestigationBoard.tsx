@@ -104,15 +104,27 @@ export const InvestigationBoard: React.FC<{
     fetchNewNarration(`I'm looking at ${clue.title}. It was found at ${clue.location}.`);
   };
 
+  const HELP_LIMIT = 7;
+  const helpRemaining = HELP_LIMIT - myReports.length;
+
   const submitReport = async () => {
     if (!reportText.trim()) return;
+    if (helpRemaining <= 0) {
+      setNarration("Our Room Laptop has exhausted its clue requests. We have to figure out the remaining puzzles on our own.");
+      return;
+    }
     setIsSendingReport(true);
-    logUserAction(userEmail, "Contacting Headquarters");
+    logUserAction(userEmail, "Requested Clue from Room Laptop");
     try {
-      await addReport({ userEmail, userName: name, message: reportText });
+      await addReport({ 
+        userEmail, 
+        userName: name, 
+        groupName: userProfile?.groupName || 'Unknown Station',
+        message: reportText 
+      });
       setReportText('');
-      setNarration("A signal was sent to HQ. Help is on the way, I just have to sit tight.");
-      logUserAction(userEmail, "Waiting for HQ response");
+      setNarration("Clue request transmitted to HQ via Room Laptop. Check back shortly for helpful guidance or clues.");
+      logUserAction(userEmail, "Awaiting Clue Response");
     } catch (err) { 
       // Error handled by global listener
     } finally {
@@ -174,9 +186,12 @@ export const InvestigationBoard: React.FC<{
             ★ Read Case File
           </button>
 
-          <button onClick={() => setShowReportModal(true)} className="bg-red-800 text-white py-4 font-black uppercase text-xs shadow-xl border-b-4 border-red-950 active:translate-y-1 transition-all hover:bg-red-700 relative">
-            ⚠ Help! (Ask Chief)
-            {hasRepliedReport && <span className="absolute top-2 right-2 w-3 h-3 bg-yellow-400 rounded-full animate-pulse shadow-lg border border-red-900"></span>}
+          <button 
+            onClick={() => setShowReportModal(true)} 
+            className={`bg-amber-800 text-white py-4 font-black uppercase text-xs shadow-xl border-b-4 border-amber-950 active:translate-y-1 transition-all relative ${helpRemaining <= 0 ? 'opacity-50 grayscale cursor-not-allowed' : 'hover:bg-amber-700'}`}
+          >
+            💻 ROOM LAPTOP: ASK FOR CLUE ({helpRemaining} LEFT)
+            {hasRepliedReport && <span className="absolute top-2 right-2 w-3 h-3 bg-yellow-400 rounded-full animate-pulse shadow-lg border border-amber-900"></span>}
           </button>
           
           <button onClick={() => { onOpenRules(); logUserAction(userEmail, "Reading the Rules"); }} className="bg-stone-800 text-stone-400 py-3 font-black uppercase text-[10px] border border-stone-700 hover:bg-stone-700 hover:text-white transition-colors">
@@ -206,6 +221,12 @@ export const InvestigationBoard: React.FC<{
             {content.manifest_heading || "The Evidence Board"}
           </h1>
           <div className="flex flex-col items-end">
+             <div className="text-[10px] font-mono text-stone-100 bg-amber-900/50 px-2 py-0.5 border border-amber-800/50 uppercase tracking-tighter mb-1 font-bold">
+               Event Date: 11 June 2026 // 16:15
+             </div>
+             <div className="text-[9px] font-mono text-stone-500 uppercase tracking-tighter mb-2">
+               Station: {userProfile?.groupName?.toUpperCase() || "UNIT-47"}
+             </div>
              {isAdmin && (
                 <span className="mb-2 bg-red-800 text-white text-[9px] font-black uppercase px-2 py-0.5 animate-pulse">
                   Admin Access Granted
@@ -336,29 +357,29 @@ export const InvestigationBoard: React.FC<{
       {/* REPORT MODAL */}
       {showReportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-sm animate-fade-in">
-          <div className="bg-[#f4f1ea] dark:bg-[#1c1917] dark:text-stone-300 w-full max-w-md p-8 shadow-2xl border-[8px] border-red-900 relative transition-colors duration-500 max-h-[90vh] overflow-y-auto">
-             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-red-900 text-white px-4 py-1 text-[10px] font-black uppercase tracking-widest shadow-md">
-               Urgent Wire
+          <div className="bg-[#f4f1ea] dark:bg-[#1c1917] dark:text-stone-300 w-full max-w-md p-8 shadow-2xl border-[8px] border-amber-900 relative transition-colors duration-500 max-h-[90vh] overflow-y-auto">
+             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-amber-900 text-white px-4 py-1 text-[10px] font-black uppercase tracking-widest shadow-md">
+               Room Laptop Clue Helper
              </div>
              
-             <h2 className="text-xl font-black uppercase mb-4 text-center mt-2 text-stone-900 dark:text-stone-100">Contact Headquarters</h2>
-             <p className="text-xs font-serif italic text-center text-stone-600 dark:text-stone-400 mb-6">"Direct line to the Chief. Use carefully."</p>
+             <h2 className="text-xl font-black uppercase mb-4 text-center mt-2 text-stone-900 dark:text-stone-100">💻 Lifehelper: Request a Clue</h2>
+             <p className="text-xs font-serif italic text-center text-stone-600 dark:text-stone-400 mb-6">"Stuck on a puzzle in your room? Ask HQ for a clue or hint here. Max 7 clue requests allowed."</p>
              
              {/* PREVIOUS MESSAGES */}
              {myReports.length > 0 && (
                <div className="mb-6 border-b-2 border-stone-300 dark:border-stone-600 pb-4">
-                 <h3 className="text-[10px] font-black uppercase mb-2 text-stone-500">Previous Wires</h3>
+                 <h3 className="text-[10px] font-black uppercase mb-2 text-stone-500">Sent Requests & Hints</h3>
                  <div className="space-y-3 max-h-40 overflow-y-auto custom-scrollbar bg-white/50 dark:bg-stone-900/50 p-2 border border-stone-200 dark:border-stone-700">
                    {myReports.map(r => (
                      <div key={r.id} className="text-xs p-2 bg-white dark:bg-stone-800 border-l-2 border-stone-400">
-                        <p className="font-bold text-stone-800 dark:text-stone-300">YOU: "{r.message.substring(0, 50)}{r.message.length > 50 ? '...' : ''}"</p>
+                        <p className="font-bold text-stone-800 dark:text-stone-300">REQUEST: "{r.message.substring(0, 50)}{r.message.length > 50 ? '...' : ''}"</p>
                         {r.status === 'replied' && (
                           <div className="mt-2 pl-2 border-l-2 border-green-600">
-                             <p className="font-black text-[9px] text-green-700 uppercase">CHIEF REPLY:</p>
+                             <p className="font-black text-[9px] text-green-700 uppercase">HEADQUARTERS HINT:</p>
                              <p className="italic text-stone-600 dark:text-stone-400">{r.adminReply}</p>
                           </div>
                         )}
-                        {r.status === 'new' && <span className="text-[8px] bg-yellow-100 text-yellow-800 px-1 mt-1 inline-block">PENDING</span>}
+                        {r.status === 'new' && <span className="text-[8px] bg-yellow-100 text-yellow-800 px-1 mt-1 inline-block">PENDING CLUE...</span>}
                      </div>
                    ))}
                  </div>
@@ -368,13 +389,18 @@ export const InvestigationBoard: React.FC<{
              <textarea 
                 value={reportText} 
                 onChange={e => setReportText(e.target.value)}
-                className="w-full bg-white dark:bg-stone-800 border-2 border-red-200 dark:border-red-900/50 p-4 font-mono text-sm h-24 focus:border-red-900 outline-none mb-6" 
-                placeholder="Chief, I found something..."
+                disabled={helpRemaining <= 0}
+                className="w-full bg-white dark:bg-stone-800 border-2 border-amber-200 dark:border-amber-900/40 p-4 font-mono text-sm h-24 focus:border-amber-900 outline-none mb-6 disabled:opacity-50" 
+                placeholder={helpRemaining <= 0 ? "No more clue requests available." : "Tell HQ which room puzzle you are stuck on..."}
               />
 
              <div className="grid grid-cols-2 gap-4">
-               <button onClick={submitReport} disabled={isSendingReport} className="bg-red-800 text-white py-3 font-black uppercase text-xs hover:bg-red-700 shadow-lg active:translate-y-1 transition-all">
-                 {isSendingReport ? 'Sending...' : 'Send Wire'}
+               <button 
+                 onClick={submitReport} 
+                 disabled={isSendingReport || helpRemaining <= 0} 
+                 className="bg-amber-900 hover:bg-amber-850 text-white py-3 font-black uppercase text-xs shadow-lg active:translate-y-1 transition-all disabled:bg-stone-600 disabled:cursor-not-allowed"
+               >
+                 {isSendingReport ? 'Sending...' : (helpRemaining <= 0 ? 'Limit Reached' : 'Request Clue')}
                </button>
                <button onClick={() => setShowReportModal(false)} className="bg-stone-200 dark:bg-stone-700 text-stone-600 dark:text-stone-300 py-3 font-black uppercase text-xs hover:bg-stone-300 dark:hover:bg-stone-600">
                  Close

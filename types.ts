@@ -29,6 +29,7 @@ export interface Report {
   id: string;
   userEmail: string;
   userName: string;
+  groupName?: string; // Station/Computer ID
   message: string;
   timestamp: any;
   status: 'new' | 'read' | 'replied';
