@@ -50,6 +50,8 @@ export const InvestigationBoard: React.FC<{
     }
   }, [userEmail]);
 
+  const seedingLock = React.useRef(false);
+
   // Real-time Subscriptions
   useEffect(() => {
     if (!userEmail) return;
@@ -66,6 +68,30 @@ export const InvestigationBoard: React.FC<{
       
       setClues(visibleClues);
       setIsInitialLoading(false);
+
+      // Auto-seed the Marilyn Monroe first clue if absent and not currently seeding
+      const hasHusbandClue = allClues.some(c => c.description.toLowerCase().includes("husband"));
+      if (!hasHusbandClue && !seedingLock.current) {
+        seedingLock.current = true;
+        addClue({
+          title: "The Second Husband's Vow",
+          description: "A faded newspaper clipping displays Marilyn Monroe in her iconic white dress. Scribbled across the bottom in red ink is a riddle: 'The first clue arises: when did I marry my second husband?' The date of this marriage to baseball legend Joe DiMaggio is January 14, 1954.",
+          location: "The Silver Screen Archive",
+          imageUrl: "https://images.unsplash.com/photo-1594122230689-486b61673017?q=80&w=2000&auto=format&fit=crop",
+          dateFound: new Date().toISOString().split('T')[0],
+          isUnlocked: true,
+          addedBy: "CHIEF"
+        })
+        .then(() => {
+          setTimeout(() => {
+            seedingLock.current = false;
+          }, 3000);
+        })
+        .catch(err => {
+          console.error("Auto seeding failed:", err);
+          seedingLock.current = false;
+        });
+      }
     });
 
     // Subscribe to My Reports (to see replies instantly)

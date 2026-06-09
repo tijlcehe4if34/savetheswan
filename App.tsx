@@ -14,7 +14,7 @@ import { SoundPlayer } from './components/SoundPlayer';
 import { AppState, SiteContent } from './types';
 import { getSiteContent, ADMIN_EMAILS, getCurrentSession, getUserInfoByEmail, logoutUser } from './services/dataService';
 
-const TARGET_DATE = new Date('2026-06-11T16:15:00');
+const TARGET_DATE = new Date('2026-06-16T16:15:00');
 
 export default function App() {
   const [user, setUser] = useState<{email: string, name: string} | null>(null);
