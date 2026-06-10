@@ -1,5 +1,5 @@
 import { doc, getDoc, setDoc, updateDoc, addDoc, deleteDoc, onSnapshot, collection, getDocs, query, where } from 'firebase/firestore';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from 'firebase/auth';
 import { auth, db } from './firebase';
 import { UserRecord, Clue, GameRules, SiteContent, Report } from '../types';
 
@@ -111,41 +111,6 @@ export const registerUser = async (email: string, password: string, name: string
     }
 };
 
-export const loginWithGoogle = async (): Promise<UserRecord> => {
-    try {
-        const provider = new GoogleAuthProvider();
-        const result = await signInWithPopup(auth, provider);
-        const email = result.user.email;
-        if (!email) {
-            throw new Error("No email returned from Google Sign-In");
-        }
-        const docRef = doc(db, 'profiles', email);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            const data = docSnap.data() as UserRecord;
-            await updateDoc(docRef, { loginTime: new Date().toISOString() });
-            return data;
-        } else {
-            const displayName = result.user.displayName || "Agent";
-            const newUser: UserRecord = {
-                email,
-                name: displayName,
-                groupName: 'Independent',
-                groupMembers: 'N/A',
-                loginTime: new Date().toISOString(),
-                cluesUnlocked: 1,
-                lastAction: 'Registered via Google',
-                lastActionTime: new Date().toISOString()
-            };
-            await setDoc(docRef, newUser);
-            return newUser;
-        }
-    } catch (error) {
-        handleFirestoreError(error, OperationType.WRITE, `profiles/google_login`);
-        throw error;
-    }
-};
-
 export const logoutUser = async () => {
     try {
       await signOut(auth);
@@ -207,6 +172,15 @@ export const updateUserNote = async (email: string, note: string) => {
         await updateDoc(doc(db, 'profiles', email), { adminNotes: note });
     } catch (e) {
         handleFirestoreError(e, OperationType.UPDATE, path);
+    }
+};
+
+export const deleteUserProfile = async (email: string) => {
+    const path = `profiles/${email}`;
+    try {
+        await deleteDoc(doc(db, 'profiles', email));
+    } catch (e) {
+        handleFirestoreError(e, OperationType.DELETE, path);
     }
 };
 

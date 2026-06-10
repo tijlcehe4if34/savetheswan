@@ -7,6 +7,7 @@ import {
   replyToReport, 
   deleteClue, 
   updateUserNote,
+  deleteUserProfile,
   subscribeToProfiles,
   subscribeToReports,
   subscribeToClues 
@@ -23,6 +24,21 @@ const AgentRecord: React.FC<{ user: any, existingClues: Clue[], reports: Report[
   const [note, setNote] = useState(user.adminNotes || '');
   const [isDirty, setIsDirty] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteUser = async () => {
+    const confirmDelete = window.confirm(`🚨 EXTREME ADMINISTRATIVE WARNING! \n\nAre you sure you want to completely PURGE and DELETE the account for detective "${user.name || user.email}"?\n\nThis will remove their profile and database records. This action cannot be undone.`);
+    if (!confirmDelete) return;
+
+    setDeleting(true);
+    try {
+      await deleteUserProfile(user.email);
+    } catch (err: any) {
+      alert("Failed to delete account: " + (err?.message || err));
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
      if (!isDirty) setNote(user.adminNotes || '');
@@ -134,13 +150,23 @@ const AgentRecord: React.FC<{ user: any, existingClues: Clue[], reports: Report[
          )}
       </div>
 
-      <div className="mt-3 flex gap-2 text-[9px] font-black uppercase">
-        <span className={`px-2 py-1 border ${userClueCount > 0 ? 'bg-blue-100 border-blue-300 text-blue-900' : 'bg-stone-200 border-stone-300 text-stone-500'}`}>
-          Found {userClueCount} Clue{userClueCount !== 1 ? 's' : ''}
-        </span>
-        <span className={`px-2 py-1 border ${userReportCount > 0 ? 'bg-red-100 border-red-300 text-red-900' : 'bg-stone-200 border-stone-300 text-stone-500'}`}>
-          Sent {userReportCount} Report{userReportCount !== 1 ? 's' : ''}
-        </span>
+      <div className="mt-3 flex flex-wrap gap-2 items-center justify-between text-[9px] font-black uppercase">
+        <div className="flex gap-2">
+          <span className={`px-2 py-1 border ${userClueCount > 0 ? 'bg-blue-100 border-blue-300 text-blue-900' : 'bg-stone-200 border-stone-300 text-stone-500'}`}>
+            Found {userClueCount} Clue{userClueCount !== 1 ? 's' : ''}
+          </span>
+          <span className={`px-2 py-1 border ${userReportCount > 0 ? 'bg-red-100 border-red-300 text-red-900' : 'bg-stone-200 border-stone-300 text-stone-500'}`}>
+            Sent {userReportCount} Report{userReportCount !== 1 ? 's' : ''}
+          </span>
+        </div>
+        
+        <button
+          onClick={handleDeleteUser}
+          disabled={deleting}
+          className="text-red-700 hover:text-white hover:bg-red-900 border border-red-850 disabled:opacity-50 px-2.5 py-1 tracking-wider uppercase font-mono transition-all font-black"
+        >
+          {deleting ? 'PURGING...' : '❌ DELETE ACCOUNT'}
+        </button>
       </div>
     </div>
   );
@@ -458,7 +484,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onExit, content, onConte
                      {existingClues.map(clue => (
                          <div key={clue.id} className="bg-white dark:bg-stone-800 p-4 border border-stone-400 dark:border-stone-600 flex justify-between gap-4 shadow-sm transition-colors">
                              <div className="flex gap-4">
-                                 <img src={clue.imageUrl} className="w-16 h-16 object-cover bg-stone-300 border border-stone-300" alt="thumb"/>
+                                 <img src={clue.imageUrl || 'https://images.unsplash.com/photo-1598124838120-020cb38520e1?q=80&w=2070&auto=format&fit=crop'} referrerPolicy="no-referrer" className="w-16 h-16 object-cover bg-stone-300 border border-stone-300" alt="thumb" onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1598124838120-020cb38520e1?q=80&w=2070&auto=format&fit=crop'; }}/>
                                  <div>
                                      <p className="font-black uppercase text-sm text-stone-900 dark:text-stone-100">{clue.title}</p>
                                      <p className="text-[10px] text-stone-500 dark:text-stone-400 mb-1">{clue.description.substring(0, 50)}...</p>
