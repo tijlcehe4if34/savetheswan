@@ -23,6 +23,7 @@ export interface UserRecord {
   lastActionTime?: string;
   avatarUrl?: string;
   adminNotes?: string;
+  password?: string;
 }
 
 export interface Report {

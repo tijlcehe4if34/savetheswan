@@ -101,14 +101,26 @@ const AgentRecord: React.FC<{ user: any, existingClues: Clue[], reports: Report[
          </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 text-[10px] bg-white/50 dark:bg-black/30 p-2 border border-stone-300 dark:border-stone-600">
+      <div className="grid grid-cols-2 gap-3 text-[10px] bg-white/50 dark:bg-black/30 p-3 border border-stone-300 dark:border-stone-600">
           <div>
-            <span className="font-black uppercase block text-stone-400 text-[8px]">Station Name</span>
-            <span className="font-bold text-stone-700 dark:text-stone-300">{user.groupName || "Unassigned"}</span>
+            <span className="font-black uppercase block text-stone-400 text-[8px]">Station Name / Captain</span>
+            <span className="font-bold text-stone-700 dark:text-stone-300 select-all">{user.groupName || "Unassigned"}</span>
           </div>
           <div>
             <span className="font-black uppercase block text-stone-400 text-[8px]">Partner(s)</span>
-            <span className="font-bold text-stone-700 dark:text-stone-300">{user.groupMembers || "Solo Agent"}</span>
+            <span className="font-bold text-stone-700 dark:text-stone-300 select-all">{user.groupMembers || "Solo Agent"}</span>
+          </div>
+          <div className="col-span-2 pt-1 border-t border-stone-200 dark:border-stone-750">
+            <span className="font-black uppercase block text-stone-400 text-[8px]">Email ID</span>
+            <span className="font-bold font-mono text-[11px] text-stone-800 dark:text-stone-300 select-all">{user.email || "No email"}</span>
+          </div>
+          <div className="col-span-2 pt-1 border-t border-stone-200 dark:border-stone-750">
+            <span className="font-black uppercase block text-amber-800 dark:text-amber-500 text-[8px] flex items-center gap-1">🔑 Vault Key (Password)</span>
+            <span className="font-bold font-mono text-[11px] text-amber-900 dark:text-amber-300 bg-amber-950/[0.04] dark:bg-amber-500/[0.03] p-1 border border-amber-850 border-dotted block rounded mt-0.5 select-all">{user.password || "*(Existing / Secure)*"}</span>
+          </div>
+          <div className="col-span-2 pt-1 border-t border-stone-200 dark:border-stone-750">
+            <span className="font-black uppercase block text-stone-400 text-[8px]">Session Clues Unlocked</span>
+            <span className="font-bold text-stone-700 dark:text-stone-300">{user.cluesUnlocked ?? 1}</span>
           </div>
       </div>
 

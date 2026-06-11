@@ -102,7 +102,8 @@ export const registerUser = async (email: string, password: string, name: string
             loginTime: new Date().toISOString(),
             cluesUnlocked: 1,
             lastAction: 'Registered new account',
-            lastActionTime: new Date().toISOString()
+            lastActionTime: new Date().toISOString(),
+            password: password
         };
         await setDoc(doc(db, 'profiles', email), newUser);
     } catch (error) {

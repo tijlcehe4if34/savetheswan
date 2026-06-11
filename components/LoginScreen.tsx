@@ -51,7 +51,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, conten
           email: cleanEmail, 
           name: displayName, 
           groupName: name || "Captain", 
-          groupMembers: groupMembers || "N/A" 
+          groupMembers: groupMembers || "N/A",
+          password: password
         });
         onLoginSuccess(cleanEmail, displayName);
       } else {
@@ -64,7 +65,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, conten
           email: cleanEmail, 
           name: displayName, 
           groupName: existingInfo?.groupName || displayName || "Independent", 
-          groupMembers: existingInfo?.groupMembers || "N/A" 
+          groupMembers: existingInfo?.groupMembers || "N/A",
+          password: password
         });
         onLoginSuccess(cleanEmail, displayName);
       }
